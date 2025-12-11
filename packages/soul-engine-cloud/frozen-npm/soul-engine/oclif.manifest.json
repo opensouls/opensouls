@@ -1,0 +1,181 @@
+{
+  "version": "0.0.49",
+  "commands": {
+    "apikey": {
+      "id": "apikey",
+      "description": "print your api key to the terminal. This command is useful for connecting to a debug chat.",
+      "strict": true,
+      "pluginName": "soul-engine",
+      "pluginAlias": "soul-engine",
+      "pluginType": "core",
+      "aliases": [],
+      "examples": [
+        "<%= config.bin %> <%= command.id %>"
+      ],
+      "flags": {
+        "local": {
+          "name": "local",
+          "type": "boolean",
+          "char": "l",
+          "allowNo": false
+        }
+      },
+      "args": {}
+    },
+    "dev": {
+      "id": "dev",
+      "description": "Hot reload your code for remote chat debug",
+      "strict": true,
+      "pluginName": "soul-engine",
+      "pluginAlias": "soul-engine",
+      "pluginType": "core",
+      "aliases": [],
+      "examples": [
+        "<%= config.bin %> <%= command.id %>"
+      ],
+      "flags": {
+        "local": {
+          "name": "local",
+          "type": "boolean",
+          "char": "l",
+          "allowNo": false
+        },
+        "once": {
+          "name": "once",
+          "type": "boolean",
+          "allowNo": false
+        }
+      },
+      "args": {}
+    },
+    "init": {
+      "id": "init",
+      "description": "Create a new soul engine soul",
+      "strict": true,
+      "pluginName": "soul-engine",
+      "pluginAlias": "soul-engine",
+      "pluginType": "core",
+      "aliases": [],
+      "examples": [
+        "<%= config.bin %> <%= command.id %>"
+      ],
+      "flags": {
+        "local": {
+          "name": "local",
+          "type": "boolean",
+          "char": "l",
+          "allowNo": false
+        },
+        "branch": {
+          "name": "branch",
+          "type": "option",
+          "char": "b",
+          "description": "The branch of the template you want to use.",
+          "required": false,
+          "multiple": false
+        }
+      },
+      "args": {
+        "projectName": {
+          "name": "projectName",
+          "description": "The name of the project you want to create.",
+          "required": true
+        }
+      }
+    },
+    "login": {
+      "id": "login",
+      "description": "Login to the Soul Engine to provide this CLI with an api key and organization.",
+      "strict": true,
+      "pluginName": "soul-engine",
+      "pluginAlias": "soul-engine",
+      "pluginType": "core",
+      "aliases": [],
+      "examples": [
+        "<%= config.bin %> <%= command.id %>"
+      ],
+      "flags": {
+        "local": {
+          "name": "local",
+          "type": "boolean",
+          "char": "l",
+          "allowNo": false
+        }
+      },
+      "args": {}
+    },
+    "logout": {
+      "id": "logout",
+      "description": "Logout of the Soul Engine to remove your api key and organization.",
+      "strict": true,
+      "pluginName": "soul-engine",
+      "pluginAlias": "soul-engine",
+      "pluginType": "core",
+      "aliases": [],
+      "examples": [
+        "<%= config.bin %> <%= command.id %>"
+      ],
+      "flags": {
+        "local": {
+          "name": "local",
+          "type": "boolean",
+          "char": "l",
+          "allowNo": false
+        }
+      },
+      "args": {}
+    },
+    "rag:push": {
+      "id": "rag:push",
+      "description": "Push your RAG files to your SOUL ENGINE bucket.",
+      "strict": true,
+      "pluginName": "soul-engine",
+      "pluginAlias": "soul-engine",
+      "pluginType": "core",
+      "aliases": [],
+      "examples": [
+        "<%= config.bin %> <%= command.id %>"
+      ],
+      "flags": {
+        "local": {
+          "name": "local",
+          "type": "boolean",
+          "char": "l",
+          "allowNo": false
+        }
+      },
+      "args": {
+        "path": {
+          "name": "path",
+          "description": "The path to the RAG files, defaults to the current working directory."
+        }
+      }
+    },
+    "rag:watch": {
+      "id": "rag:watch",
+      "description": "Push your RAG files to your SOUL ENGINE bucket.",
+      "strict": true,
+      "pluginName": "soul-engine",
+      "pluginAlias": "soul-engine",
+      "pluginType": "core",
+      "aliases": [],
+      "examples": [
+        "<%= config.bin %> <%= command.id %>"
+      ],
+      "flags": {
+        "local": {
+          "name": "local",
+          "type": "boolean",
+          "char": "l",
+          "allowNo": false
+        }
+      },
+      "args": {
+        "path": {
+          "name": "path",
+          "description": "The path to the RAG files, defaults to the current working directory."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,241 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector(schema: "public")]
+}
+
+model organizations {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String?  @unique
+  api_keys    api_keys[]
+  subroutines subroutines[]
+  jwts        jwts[]
+  custom_processors custom_processors[]
+  cycle_vector_stores cycle_vector_stores[]
+  cycle_vector_stores_version cycle_vector_stores_version[]
+  debug_chat debug_chat[]
+  debug_chat_version debug_chat_version[]
+  soul_sessions soul_sessions[]
+  soul_source_docs soul_source_docs[]
+  shared_contexts shared_contexts[]
+  vector_store vector_store[]
+  subroutine_settings subroutine_settings[]
+  subroutine_versions subroutine_versions[]
+}
+
+model local_users {
+  id    String  @id @default(uuid()) @db.Uuid
+  email String  @unique
+  name  String?
+}
+
+model api_keys {
+  id              String   @id @default(uuid()) @db.Uuid
+  organization_id String   @db.Uuid
+  user_id         String?  @db.Uuid
+  key_hash        String   @unique
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organizations organizations @relation(fields: [organization_id], references: [id])
+}
+
+model custom_processors {
+  organization_id String   @db.Uuid
+  name            String
+  model_name      String
+  api_endpoint    String
+  api_key         String   @db.Uuid
+  opts            Json     @default("{}")
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organizations organizations @relation(fields: [organization_id], references: [id])
+
+  @@id([organization_id, name])
+}
+
+model jwts {
+  id              String   @id @default(uuid()) @db.Uuid
+  organization_id String   @db.Uuid
+  issuer          String
+  public_key      String
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organizations organizations @relation(fields: [organization_id], references: [id])
+
+  @@index([issuer])
+  @@index([organization_id])
+}
+
+model subroutines {
+  slug            String   @id
+  organization_id String   @db.Uuid
+  content_key     String?
+
+  organizations organizations @relation(fields: [organization_id], references: [id])
+  subroutine_settings subroutine_settings[]
+  subroutine_versions subroutine_versions[]
+  cycle_vector_stores cycle_vector_stores[]
+  cycle_vector_stores_version cycle_vector_stores_version[]
+  soul_sessions soul_sessions[]
+  soul_source_docs soul_source_docs[]
+}
+
+model subroutine_versions {
+  organization_id String   @db.Uuid
+  subroutine_slug String
+  name            String
+  created_by      String?  @db.Uuid
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organizations organizations @relation(fields: [organization_id], references: [id])
+  subroutines   subroutines   @relation(fields: [subroutine_slug], references: [slug])
+
+  @@id([organization_id, subroutine_slug, name])
+}
+
+model subroutine_settings {
+  organization_id String   @db.Uuid
+  subroutine_slug String
+  enforce_jwt     Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organizations organizations @relation(fields: [organization_id], references: [id])
+  subroutines   subroutines   @relation(fields: [subroutine_slug], references: [slug])
+
+  @@id([organization_id, subroutine_slug])
+}
+
+model usage_metrics {
+  id                     Int      @id @default(autoincrement())
+  event_name             String
+  organization_slug      String
+  metadata               Json?
+  model                  String?
+  input                  Int?
+  output                 Int?
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+  blueprint_name         String?
+  credit_microcents_used Int?
+
+  @@index([organization_slug])
+}
+
+model vector_store {
+  organization_id String   @db.Uuid
+  bucket          String
+  key             String
+  content         String?
+  embedding       Unsupported("vector")?
+  metadata        Json     @default("{}")
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  content_hash    Bytes?
+  embedding_model String?  @default("mxbai-embed-xsmall-v1")
+
+  organizations organizations @relation(fields: [organization_id], references: [id])
+
+  @@id([organization_id, bucket, key])
+  @@index([metadata], map: "idx_vector_store_metadata")
+}
+
+model soul_sessions {
+  name            String   @id
+  organization_id String?  @db.Uuid
+  subroutine_slug String
+  state           Bytes?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  byte_size       BigInt?  @default(0)
+
+  organizations organizations? @relation(fields: [organization_id], references: [id])
+  subroutines   subroutines   @relation(fields: [subroutine_slug], references: [slug])
+}
+
+model soul_source_docs {
+  name            String   @id
+  organization_id String   @db.Uuid
+  subroutine_slug String?
+  state           Bytes?
+  created_at      DateTime @default(now()) @db.Timestamp(6)
+  updated_at      DateTime @default(now()) @db.Timestamp(6)
+  byte_size       BigInt?  @default(0)
+
+  organizations organizations @relation(fields: [organization_id], references: [id])
+  subroutines   subroutines?  @relation(fields: [subroutine_slug], references: [slug])
+}
+
+model debug_chat {
+  name            String   @id
+  state           Bytes?
+  organization_id String?  @db.Uuid
+  subroutine_slug String?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  byte_size       BigInt?  @default(0)
+
+  organizations organizations? @relation(fields: [organization_id], references: [id])
+}
+
+model debug_chat_version {
+  name            String   @id
+  state           Bytes?
+  organization_id String   @db.Uuid
+  subroutine_slug String?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  byte_size       BigInt?  @default(0)
+
+  organizations organizations @relation(fields: [organization_id], references: [id])
+}
+
+model shared_contexts {
+  name            String   @id
+  organization_id String?  @db.Uuid
+  subroutine_slug String?
+  state           Bytes?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  byte_size       BigInt?  @default(0)
+
+  organizations organizations? @relation(fields: [organization_id], references: [id])
+}
+
+model cycle_vector_stores {
+  name            String   @id
+  organization_id String   @db.Uuid
+  subroutine_slug String?
+  state           Bytes?
+  created_at      DateTime @default(now()) @db.Timestamp(6)
+  updated_at      DateTime @default(now()) @db.Timestamp(6)
+  byte_size       BigInt?  @default(0)
+
+  organizations organizations @relation(fields: [organization_id], references: [id])
+  subroutines   subroutines?  @relation(fields: [subroutine_slug], references: [slug])
+}
+
+model cycle_vector_stores_version {
+  name            String   @id
+  state           Bytes?
+  organization_id String   @db.Uuid
+  subroutine_slug String?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  byte_size       BigInt?  @default(0)
+
+  organizations organizations @relation(fields: [organization_id], references: [id])
+  subroutines   subroutines?  @relation(fields: [subroutine_slug], references: [slug])
+}
+
+model allowed_github_usernames {
+  username String @id
+}
+

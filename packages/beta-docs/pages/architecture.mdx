@@ -1,0 +1,266 @@
+# Soul Engine Architecture
+
+The Soul Engine is a distributed system for creating, deploying, and running AI souls. This document provides a high-level overview of how code flows from your local development environment to execution on the engine, and how state and memories are persisted.
+
+## Package Overview
+
+The Soul Engine is organized into several key packages:
+
+```mermaid
+graph TB
+    subgraph "Developer Environment"
+        CLI["soul-engine (CLI)"]
+        Code["Blueprint Code"]
+    end
+    
+    subgraph "Soul Engine Cloud"
+        Server["WebSocket Server"]
+        Workers["Worker Pool"]
+        Storage["YJS Document Storage"]
+    end
+    
+    subgraph "Client Applications"
+        UI["soul-engine-ui (Debugger)"]
+        App["Your Application"]
+    end
+    
+    Code --> CLI
+    CLI -->|"WebSocket Sync"| Server
+    Server --> Workers
+    Workers --> Storage
+    Server -->|"Real-time Events"| UI
+    Server -->|"Real-time Events"| App
+```
+
+| Package | Purpose |
+|---------|---------|
+| `packages/soul-engine-cloud` | The main engine that compiles and executes soul code in isolated sandboxes |
+| `packages/soul-engine` | CLI tooling (`bunx soul-engine dev`) that watches your code and syncs it to the engine |
+| `packages/soul-engine-ui` | Next.js debugger UI for testing and inspecting souls in real-time |
+| `packages/engine` | Core SDK with types, client libraries, and the `Soul` class for connecting to souls |
+
+---
+
+## Code Flow: From Developer to Execution
+
+When you're developing a soul, your code takes the following journey from your editor to execution:
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant CLI as CLI (soul-engine dev)
+    participant Engine as Soul Engine Cloud
+    participant Worker as Worker Process
+    
+    Dev->>CLI: Save file changes
+    CLI->>CLI: Watch detects changes
+    CLI->>Engine: Sync code via WebSocket
+    Engine->>Engine: Bundle TypeScript
+    Engine->>Engine: Create isolated sandbox
+    
+    Note over Engine,Worker: Code is ready for execution
+    
+    Dev->>Engine: Send perception ("User said hi")
+    Engine->>Worker: Execute mental process
+    Worker->>Worker: Run in sandbox
+    Worker->>Engine: Dispatch interaction request
+    Engine->>Dev: "Soul says hello!"
+```
+
+### Step by Step
+
+1. **Write Code Locally**  
+   You write your blueprint in a local directory—mental processes, subprocesses, the soul's personality markdown file, and any cognitive steps.
+
+2. **CLI Syncs to Engine**  
+   Running `bunx soul-engine dev` starts a watcher that detects file changes and syncs your code to the Soul Engine over a WebSocket connection. The code is stored in a YJS document for real-time collaboration.
+
+3. **Engine Bundles & Sandboxes**  
+   The engine bundles your TypeScript using Bun and prepares it for execution in an isolated sandbox. This sandbox prevents your code from accessing system resources or interfering with other souls.
+
+4. **Perceptions Trigger Execution**  
+   When a perception arrives (e.g., a user message), the engine adds it to working memory and executes your current mental process. Your code runs, potentially calling LLMs, updating memories, and dispatching interaction requests.
+
+5. **Interaction Requests Flow Back**  
+   When your soul calls `dispatch()` or `speak()`, the engine sends an interaction request back to connected clients over the WebSocket, completing the loop.
+
+---
+
+## Server & Worker Architecture
+
+The Soul Engine uses a multi-process architecture to safely execute user code while maintaining real-time responsiveness:
+
+```mermaid
+graph TB
+    subgraph "Main Server Process"
+        WS["WebSocket Server<br/>(HocusPocus)"]
+        Queue["Job Queue<br/>(Task Worker)"]
+        Pool["Worker Pool Manager"]
+    end
+    
+    subgraph "Worker Processes"
+        W1["Worker 1<br/>(Sandbox)"]
+        W2["Worker 2<br/>(Sandbox)"]
+        W3["Worker N<br/>(Sandbox)"]
+    end
+    
+    subgraph "Persistence"
+        Vol["Volume Storage"]
+        DB["Database"]
+    end
+    
+    Client["Clients"] -->|"WebSocket"| WS
+    WS --> Queue
+    Queue --> Pool
+    Pool -->|"IPC"| W1
+    Pool -->|"IPC"| W2
+    Pool -->|"IPC"| W3
+    
+    W1 --> Vol
+    W2 --> Vol
+    W3 --> Vol
+    Vol --> DB
+```
+
+### Key Components
+
+**WebSocket Server**  
+Built on HocusPocus, the server maintains persistent WebSocket connections with clients. It handles document synchronization, authentication, and routes perceptions to the processing queue.
+
+**Worker Pool**  
+A pool of child processes (typically 2-5) that execute user code in isolation. Each worker:
+- Runs in its own process for memory isolation
+- Communicates with the main server via IPC (Inter-Process Communication)
+- Can be killed and respawned if code misbehaves
+- Maintains its own database connection for efficiency
+
+**Job Queue**  
+A task queue manages work distribution:
+- Processing perceptions through mental processes
+- Executing subprocesses after the main thread completes
+- Handling scheduled events (e.g., "remind me in 5 minutes")
+- Code sync and bundling tasks
+
+**Processing Flow**  
+When a perception arrives:
+1. Server adds it to the event log
+2. Job queue schedules main thread execution
+3. Worker pool assigns an available worker
+4. Worker executes the mental process in a sandbox
+5. Worker reports completion; server schedules subprocesses
+6. Subprocesses run, then the cycle completes
+
+---
+
+## Memory & State (YJS Documents)
+
+All soul state is stored in **YJS documents**—conflict-free replicated data types (CRDTs) that enable real-time synchronization across multiple clients without conflicts.
+
+```mermaid
+graph LR
+    subgraph "YJS Documents"
+        Session["Session State<br/>• Current process<br/>• Invocation counts<br/>• Working memory"]
+        Events["Event Log<br/>• Perceptions<br/>• Interaction requests<br/>• System events"]
+        Vector["Vector Store<br/>• Soul memories<br/>• Embeddings<br/>• Semantic search"]
+        Source["Source Doc<br/>• Blueprint code<br/>• File sync state"]
+    end
+    
+    subgraph "Persistence Layer"
+        Volume["Volume Storage<br/>(Fast Access)"]
+        Database["Database<br/>(Backup)"]
+    end
+    
+    Session --> Volume
+    Events --> Volume
+    Vector --> Volume
+    Source --> Volume
+    Volume --> Database
+```
+
+### Document Types
+
+| Document | Contents |
+|----------|----------|
+| **Session State** | Current mental process, invocation counts, working memory, subprocess states |
+| **Event Log** | All perceptions, interaction requests, and system events with timestamps |
+| **Vector Store** | Soul memories with embeddings for semantic search |
+| **Source Doc** | Synchronized blueprint code from the CLI |
+
+### Memory Hooks
+
+Your soul code interacts with memory through hooks:
+
+**`useSoulMemory(key, initialValue)`**  
+Persistent key-value storage that survives across sessions. Perfect for remembering facts, preferences, or any structured data.
+
+```typescript
+const name = useSoulMemory("userName", "")
+// Later...
+name.current = "Alice"  // Persisted automatically
+```
+
+**`useSoulStore()`**  
+A vector store with embedding-based semantic search. Store and retrieve memories by meaning, not just keys.
+
+```typescript
+const { set, search } = useSoulStore()
+
+// Store a memory with metadata
+set("memory-1", "User loves jazz music", { topic: "preferences" })
+
+// Search by semantic similarity
+const results = await search("what kind of music?", { limit: 5 })
+```
+
+### Why YJS?
+
+YJS provides several benefits for soul state:
+
+- **Real-time Sync**: Changes propagate instantly to the debugger UI and any connected clients
+- **Conflict Resolution**: Multiple writers (main thread, subprocesses, UI) can update state without conflicts
+- **Offline Support**: State can be modified offline and merged when reconnected
+- **Versioning**: Easy to snapshot and revert to previous states (used by the debugger's "revert" feature)
+- **Efficient**: Binary encoding and delta updates minimize network traffic
+
+---
+
+## Putting It All Together
+
+Here's how all the pieces connect when a user interacts with your soul:
+
+```mermaid
+sequenceDiagram
+    participant User as User/App
+    participant SDK as Soul SDK
+    participant Server as Engine Server
+    participant Worker as Worker Pool
+    participant YJS as YJS Documents
+    
+    User->>SDK: soul.dispatch({ action: "said", content: "Hello!" })
+    SDK->>Server: WebSocket: perception
+    Server->>YJS: Add to event log
+    Server->>Worker: Execute main thread
+    
+    Worker->>YJS: Load session state
+    Worker->>Worker: Run mental process
+    Worker->>YJS: Update working memory
+    Worker->>YJS: Store new memories
+    Worker->>Server: dispatch({ action: "says", content: "Hi there!" })
+    
+    Server->>YJS: Add interaction request
+    Server->>SDK: WebSocket: interaction request
+    SDK->>User: soul.on("says") callback fires
+    
+    Server->>Worker: Execute subprocesses
+    Worker->>YJS: Update any subprocess state
+    Worker->>Server: Complete
+```
+
+The Soul Engine handles all the complexity of:
+- Secure code execution in isolated sandboxes
+- Real-time state synchronization
+- Persistent memory with semantic search
+- Multi-process job management
+- WebSocket communication
+
+You focus on designing your soul's mind—the engine handles the rest.

@@ -1,0 +1,9 @@
+const meta = {
+  'working-memory': 'Working Memory',
+  'cognitive-step': 'Cognitive Step',
+  'list-manipulation': 'List Manipulation',
+  'learn-by-example': 'Learn by Example',
+};
+
+export default meta;
+

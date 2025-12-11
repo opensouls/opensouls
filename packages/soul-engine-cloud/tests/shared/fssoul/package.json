@@ -1,0 +1,25 @@
+{
+  "name": "fs-twenty-questions",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "description": "A test of the soul-engine fs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/common-tags": "^1.8.4",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "common-tags": "^1.8.2",
+    "socialagi": "~0.1.5",
+    "soul-engine": "~0.0.26"
+  },
+  "soulEngine": {
+    "defaultModel": "exp/llama-v3-70b-instruct"
+  }
+}

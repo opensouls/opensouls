@@ -1,0 +1,14 @@
+const meta = {
+  useActions: 'useActions',
+  usePerceptions: 'usePerceptions',
+  useProcessMemory: 'useProcessMemory',
+  useProcessManager: 'useProcessManager',
+  useSoulMemory: 'useSoulMemory',
+  useSoulStore: 'useSoulStore',
+  useBlueprintStore: 'useBlueprintStore',
+  useOrganizationStore: 'useOrganizationStore',
+  useTool: 'useTool',
+};
+
+export default meta;
+

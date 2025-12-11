@@ -1,0 +1,184 @@
+# Regions
+Regions are an easy way manage and organize a [Working Memory](./working-memory.mdx)'s memories. Since Working Memory simply accumulates inputs over time, as memories continuously grow (and subsequently the LLM context), Souls will eventually start to get lost with previous context, fail to recall specific events and details, or can completely fail due to exhausting their context window sizes. By utilizing regions, you can ensure that the Soul keeps it's memories organized to best suit its tasks and that we're only sending pertinent information for an LLM call.
+
+## What is a Region?
+A region is a named, lightweight container for one or more memories. Each region can have its own set of memories, are part of the WorkingMemory class, and can be used anywhere you are using a Working Memory.
+
+By default, every new memory added to a WorkingMemory gets stored in a region called `default`. This region is used to store all the information that the Soul has gathered during its execution. Any developer-defined region will be placed **before** the default region in the region order and developers can specify their own [regional ordering](#withregionalorder).
+
+When creating a new soul via `bunx soul-engine init <soulName>`, it will start with three initial regions: `core`, `summary`, and `default`. 
+- The `core` region is used to store the soul's core personality, loaded through [soul.ts](../blueprints/soul-ts.mdx) and the [Memory Integrator](../blueprints/memory-integrator.mdx), 
+- The `summary` region is used by the baseline conversation summary [Subprocess](../blueprints/subprocesses.mdx), 
+- The `default` region is used to store all other memories.
+```
+WorkingMemory regions
++--------------------+
+|      Core          |
++--------------------+
+|     Summary        |
++--------------------+
+|     default        |
++--------------------+
+```
+
+## Specifying a Region
+The primary way of specifying a new memory region is by calling the `.withRegion()` function on a Working Memory object. This function takes two arguments. The first argument is a string identifier for the region, and the second argument is an InputMemory object, or an array of InputMemory objects. 
+
+```typescript
+  import { ChatMessageRoleEnum } from "@opensouls/engine";
+  
+  workingMemory = workingMemory
+    .withRegion("myRegion", {
+      role: ChatMessageRoleEnum.System,
+      content: "This is my new region!",
+      name: "DemoSoul",
+    });
+```
+
+With the above function call, the returned Working Memory will now have a new region called `myRegion` with the provided InputMemory object. If the region did not exist before, it will be created. If the region did exist, it will be updated with the new InputMemory object.
+
+## Region Utilities
+One of the most powerful features of regions is the ability to programmatically manage the Soul's memory. Regions can be used to store information that is relevant to a specific part of the Soul's execution, and can be used to help the Soul recall specific events or information. Said another way, regions can be included or excluded from Working Memory, depending on the context of the Soul's execution.
+
+### withRegionalOrder
+By default, regions are ordered in the order that they are created. This may be acceptable for some situations, but many times you will want to have more granular control of the order, as many LLM models today pay more attention to the beginning/end of their context window, and lose details in the middle. Also to note, if the `default` region is not specified, it will always be placed at the end.
+
+To explicitly order regions (even before they are created), you can use the `.withRegionalOrder()` function. This function takes an array of strings as the only argument, where each string is the identifier of a region. The returned Working Memory will have regions ordered in the order that they are provided in the array. 
+
+```typescript
+  workingMemory = workingMemory.withRegionalOrder(["myRegion", "default", "myOtherRegion"]);
+  /**
+  Working Memory regions would be ordered like this:
+  +--------------------+
+  |      myRegion      |
+  +--------------------+
+  |       default      |
+  +--------------------+
+  |    myOtherRegion   |
+  +--------------------+
+  */
+```
+
+### withoutRegions
+The `withoutRegions()` function is used to remove specific regions from Working Memory. This function takes an array of strings, where each string is the identifier of a region. The regions specified in the array will be removed from the returned working memory.
+
+```typescript
+  workingMemory = workingMemory.withRegionalOrder(["myRegion", "myOtherRegion", "default"]);
+  /**
+  All WorkingMemory regions
+  +--------------------+
+  |      myRegion      |
+  +--------------------+
+  |    myOtherRegion   |
+  +--------------------+
+  |       default      |
+  +--------------------+
+  */
+  
+  const withoutMyRegion = workingMemory.withoutRegions(["myRegion"]);
+  /**
+  withoutMyRegion will now only have two regions: myOtherRegion and default
+  +--------------------+
+  |    myOtherRegion   |
+  +--------------------+
+  |       default      |
+  +--------------------+
+  */
+```
+
+### withOnlyRegions
+The `withOnlyRegions()` function is used to keep **only** specific regions in Working Memory. This function takes an array of strings, where each string is the identifier of a region. The regions specified in the array will be kept in the returned working memory, and all other regions will be removed.
+
+```typescript
+  workingMemory = workingMemory.withRegionalOrder(["myRegion", "myOtherRegion", "default"]);
+  /**
+  WorkingMemory regions
+  +--------------------+
+  |      myRegion      |
+  +--------------------+
+  |    myOtherRegion   |
+  +--------------------+
+  |       default      |
+  +--------------------+
+  */
+  
+  const onlyMyRegion = workingMemory.withOnlyRegions(["myRegion"]);
+  /**
+  onlyMyRegion will now only have one region: myRegion
+  +--------------------+
+  |      myRegion      |
+  +--------------------+
+  */
+```
+
+## Use Cases & Examples
+Below are examples of a few different ways that regions can be used to manage Working Memory.
+
+### Memory Integrator
+Sometimes you may want to make changes on every perception, and the Memory Integrator is a great place to setup regions for your soul. In fact, the base Memory Integrator for every Soul already uses regions to keep a "core" and "summary" region at the front of the working memory.
+
+```typescript
+  import { ChatMessageRoleEnum, MemoryIntegrator } from "@opensouls/engine";
+
+  const memoryIntegrator: MemoryIntegrator = async ({ perception, workingMemory, currentProcess, soul }) => {
+    workingMemory = workingMemory.withRegion("core", {
+      role: ChatMessageRoleEnum.System,
+      content: soul.staticMemories.core,
+    }).withRegionalOrder("core", "summary", "default")
+  
+  // ... rest of the memory integrator
+  }
+
+  export default memoryIntegrator
+```
+
+Other times, you may want to control specific regions being accessed for specific [Mental Process](../blueprints/mental-processes.mdx), and regions via the Memory Integrator is a great option for that as well.
+
+```typescript
+  import { ChatMessageRoleEnum, MemoryIntegrator } from "@opensouls/engine";
+
+  const memoryIntegrator: MemoryIntegrator = async ({ perception, workingMemory, currentProcess, soul }) => {
+    // default for all processes
+    workingMemory = workingMemory.withRegion("core", {
+      role: ChatMessageRoleEnum.System,
+      content: soul.staticMemories.core,
+    }).withRegionalOrder("core", "summary", "personality", "userNotes", "default")
+  
+    if (currentProcess === "processA") {
+      workingMemory = workingMemory.withRegionalOrder(["core", "userNotes", "default" "personality", "summary"])
+    } else if (currentProcess === "processB") {
+      workingMemory = workingMemory.withRegionalOrder(["core", "summary", "default"])
+    }
+  
+    // ... rest of the memory integrator
+  }
+
+  export default memoryIntegrator
+```
+
+### Mental Process
+When needing to make more point-in-time adjustments to Working Memory or Regions, handling that logic within a speific Mental Process typically makes the most sense. Similarly to how you may call a `decision` cognitive step, but not actually add it's Working Memory to the _returned_ Working memory, you may want to track a Mental Processes own internal information, and regions are a great way to handle this without cluttering the default region.
+
+
+```typescript
+  import { ChatMessageRoleEnum, MentalProcess } from "@opensouls/engine";
+  import decision from "../cognitiveSteps/decision.ts";
+
+  const mentalProcess: MentalProcess = async ({ workingMemory }) => {
+    
+    // "Goals" are further down in the working memory, and may not be accurately recalled
+    workingMemory = workingMemory.withRegionalOrder(["A", "B", "C", "D", "goals", "default"]);
+
+    // Now, we can easily access the goals region
+    const withGoals = workingMemory.withOnlyRegions(["goals"]);
+
+    // Decision has a higher chance of success now that the goals are at the front of the working memory
+    const [, didGoal] = await decision({
+      withGoals,
+      {
+        description: "Did the Soul achieve the goal?",
+        choices: ["yes", "no"],
+      }
+    });
+  }
+```

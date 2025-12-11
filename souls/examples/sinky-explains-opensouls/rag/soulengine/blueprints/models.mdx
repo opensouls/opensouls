@@ -1,0 +1,16 @@
+# Models
+
+The engine supports two different GPT-based models for working memory transformations (`CognitiveStep`s):
+
+- `"gpt-3.5-turbo-0125"`
+- `"gpt-4-0125-preview"`
+
+Right now, these map onto particular freezes of OpenAI models, but over time will change. We're experimenting with using OSS models for `"gpt-3.5-turbo-0125"` internally.
+
+By default, `"gpt-3.5-turbo-0125"` is chosen, but the choice can be explicit via:
+
+```javascript
+step = await step.next(..., { model: "gpt-4-0125-preview" })
+```
+
+Generally we recommend using `"gpt-3.5-turbo-0125"` for many internal thought processes and `"gpt-4-0125-preview"` for the generation that a user or player interacts with.

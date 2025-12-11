@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/docs/:path*", "destination": "https://platform-soul-engine-docs.vercel.app/:path*" }
+  ]
+}  

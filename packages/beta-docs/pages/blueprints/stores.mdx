@@ -1,0 +1,69 @@
+import { Callout } from 'nextra/components'
+
+# Soul, Blueprint, and Organization Stores
+
+The Soul Engine provides 3 levels of stores that use vector embeddings. These are key/value stores that also offer semantic search.
+
+* [useSoulStore](./hooks/useSoulStore.mdx) operates only at the *soul* level, the store is not shared between different soulIds
+* [useBlueprintStore](./hooks/useBlueprintStore.mdx) operates at the blueprint level and all souls sharing the same blueprint will share the same store.
+* [useOrganizationStore](./hooks/useOrganizationStore.mdx) operates at the organization level and all blueprints and souls within the same org share these same stores.
+
+<Callout type="info" emoji="ℹ️">
+  For a full featured soul using the markdown pipeline and a blueprint store, check out [Raggy](https://github.com/opensouls/experimental-souls/tree/main/souls/raggy-knows-open-souls).
+</Callout>
+
+These stores are divided up into "buckets" so you can further segment your data and search.
+
+## Syncing and Updating
+
+The `soul-engine` CLI allows you to sync your blueprint/organization store buckets to your local file system, edit the contents and sync them back up to the soul engine. This lets you create complex pipelines for ingesting, chunking, and shipping files that run on your own systems but sync to the Soul Engine.
+
+```pre
+Usage: soul-engine stores [command]
+
+Commands:
+  pull <bucketName>  Pull a specific bucket from the store. This can be in the format `:bucketName` for blueprint stores or
+                               `organization/:bucketName` for organization stores.
+  push <bucketName>  Push a specific bucket to the store. This can be in the format `:bucketName` for blueprint stores or
+                               `organization/:bucketName` for organization stores.
+```
+
+```bash filename="examples.sh"
+# Example
+bunx soul-engine stores pull defaultBucket
+bunx soul-engine stores push defaultBucket
+bunx soul-engine stores pull organization/myBucket
+```
+
+## Pipelines
+
+The `@opensouls/pipeline` project makes it simple to get started creating your own pipelines. Currently there's only a filesystem pipeline that supports text. Other formats will be supported later.
+
+The easiest way to get started with a pipeline is to install the markdown pipeline into your own soul.
+
+```bash
+bunx soul-engine install pipelines/markdown
+```
+
+Running that command will create a script to run your pipeline, a `backgroundInformation` directory to house your markdown files, and a simple pipeline to intelligently chunk and ship your files up to the "default" bucket of the blueprint store for your soul.
+
+As with all `soul-engine` installs, this code will now be in your repo and editable.
+
+After adding your markdown files to the `backgroundInformation` directory, you can run the pipeline with:
+
+```bash
+bunx tsx ./scripts/pipeline.ts
+```
+
+For convenience, you can also add this to your `package.json` scripts if you want to execute it with `npm run pipeline`:
+
+```js filename="package.json"
+{
+  // ...
+  "scripts": {
+    // ...
+    "pipeline": "bunx tsx ./scripts/pipeline.ts"
+  }
+  // ...
+}
+```

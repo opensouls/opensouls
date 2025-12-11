@@ -1,0 +1,102 @@
+# Configuring your soul
+
+When designing your soul, you will want to include baseline memories, instructions, personality, and more to ensure that your soul has enough context to fill it's role properly. Defining and customizing your soul.ts file is the first step toward this. 
+
+## Defining a simple soul.ts
+
+Every soul should define a `soul.ts` file to ensure that the soul has been named, and that _at least_ the core staticMemories has been loaded, as this will be loaded by the default memory integrator. When initializing a new soul, the soul.ts file will be setup up with a standard `core` [memory region](../core/regions.mdx) by default, which the Memory Integrator will use to setup the soul's working memory.
+
+```typescript filename=soul/soul.ts"
+import { Soul, load } from "@opensouls/engine";
+
+const soul: Soul = {
+  name: "DemoSoul",
+  staticMemories: {
+    core: load("./staticMemories/core.md"),
+  }
+};
+
+export default soul;
+```
+
+## Environment Variables
+
+You can define environment variables for your soul by populating the `env` property of the soul object. This can be useful for storing configuration values that you want to keep separate from your code. These environment variables will get parsed and loaded into the container that runs your soul code.
+
+```typescript filename=soul/soul.ts"
+import { Soul, load } from "@opensouls/engine";
+
+const soul: Soul = {
+  name: "DemoSoul",
+  staticMemories: {
+    core: load("./staticMemories/core.md"),
+  },
+  env: {
+    STATIC_KEY: "static-value",
+  }
+};
+
+export default soul;
+```
+
+### Templating Environment Variables 
+Internally, we use Mustache to render template strings, so to use these environment variables in your soul's code you can use our `$$()` convinience function to access them, and `{{}}` handlebars to reference your environment variables.
+
+```typescript {6} filename=soul/mentalProcess/demo.ts"
+import { useActions } from "@opensouls/engine"
+ 
+const demoEnvironment: MentalProcess = async ({ workingMemory }) => {
+  const { speak } = useActions()
+
+  speak($$("My static key's value is {{STATIC_KEY}}."))
+ 
+  return workingMemory
+}
+```
+
+### Global Soul Environment Variables
+As part of our containerization, we also make a global `soul` variable available to use in your soul's code. This object contains the `env` object from your soul.ts file and can be useful, for example, for making prompts more dynamic by accessing environment variables in your cognitive steps.
+
+```typescript filename=soul/mentalProcess/demo.ts"
+import { indentNicely } from "@opensouls/engine";
+import internalMonologue from "./cognitiveSteps/internalMonologue.ts";
+
+const [withThought, thought] = await internalMonologue(
+  withDialog,
+  indentNicely`
+    ${soul.env.name} thinks about how they are doing, how they feel and how they can better help. They respond in 1-2 sentences MAX.
+  `,
+  { model: "gpt-4o-mini" }
+)
+```
+
+## Working with Memory Integrator
+
+The `soul.ts` file that you define for your soul gets passed into the [Memory Integrator](./memory-integrator.mdx) as a parameter, which allows you full control to setup your soul's working memory during execution. You can take a look at any default Memory Integrator (or the brief example below) to see how you can use your soul.ts file in conjunction with the Memory Integrator.
+
+```typescript {3,7} filename="soul/memoryIntegrator.ts"
+import { ChatMessageRoleEnum, MemoryIntegrator } from "@opensouls/engine"
+
+const memoryIntegrator: MemoryIntegrator = async ({ perception, workingMemory, currentProcess, soul }) => {
+  workingMemory = workingMemory.withRegion("core", {
+    role: ChatMessageRoleEnum.System,
+    content: soul.staticMemories.core,
+  }).withRegionalOrder("core", "summary", "default")
+  
+  const content = `${perception.name} ${perception.action}: "${perception.content}"`
+
+  workingMemory = workingMemory.withMemory({
+    role: perception.internal ? ChatMessageRoleEnum.Assistant : ChatMessageRoleEnum.User,
+    content,
+    ...(perception.name ? { name: safeName(perception.name) } : {}),
+    metadata: {
+      ...perception._metadata,
+      timestamp: perception._timestamp
+    }
+  })
+
+  return [workingMemory, currentProcess]
+}
+
+export default memoryIntegrator
+```

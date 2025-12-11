@@ -1,0 +1,100 @@
+{
+  "author": "Open Souls Co PBC",
+  "type": "module",
+  "bin": {
+    "soul-engine": "./bin/run.js"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./soul": "./dist/soul/index.js"
+  },
+  "dependencies": {
+    "@hocuspocus/provider": "=2.9.0",
+    "@oclif/core": "3.23.0",
+    "@syncedstore/core": "^0.6.0",
+    "chokidar": "^3.5.3",
+    "common-tags": "^1.8.2",
+    "conf": "^12.0.0",
+    "cross-fetch": "^4.0.0",
+    "enquirer": "^2.4.1",
+    "eventemitter3": "^5.0.1",
+    "execa": "^8.0.1",
+    "glob": "^10.3.10",
+    "handlebars": "^4.7.8",
+    "open": "^9.1.0",
+    "socialagi": "^0.1.9",
+    "uuid": "^9.0.1"
+  },
+  "description": "Create, debug, and deploy AI Souls",
+  "devDependencies": {
+    "@oclif/prettier-config": "^0.2.1",
+    "@oclif/test": "^3",
+    "@supabase/supabase-js": "^2.39.2",
+    "@types/chai": "^4",
+    "@types/common-tags": "^1.8.4",
+    "@types/mocha": "^9.0.0",
+    "@types/mustache": "^4.2.5",
+    "@types/node": "^18",
+    "@types/ws": "^8.5.10",
+    "chai": "^4",
+    "eslint": "^8.55.0",
+    "eslint-config-oclif": "^5",
+    "eslint-config-oclif-typescript": "^3",
+    "eslint-config-prettier": "^9.0.0",
+    "mocha": "^10",
+    "oclif": "^3.17.2",
+    "shx": "^0.3.3",
+    "typescript": "^5.4.0-dev.20231215"
+  },
+  "optionalDependencies": {
+    "ws": "^8.16.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "/bin",
+    "/dist",
+    "/oclif.manifest.json",
+    "README.md"
+  ],
+  "homepage": "https://opensouls.org",
+  "license": "UNLICENSED",
+  "main": "dist/index.js",
+  "name": "soul-engine",
+  "oclif": {
+    "bin": "soul-engine",
+    "dirname": "soul-engine",
+    "commands": "./dist/commands",
+    "topicSeparator": " ",
+    "topics": {
+      "dev": {
+        "description": "create and debug code on the soul engine platform"
+      },
+      "rag": {
+        "description": "Push and pull RAG files to the soul engine platform"
+      }
+    }
+  },
+  "repository": "opensouls/platform",
+  "scripts": {
+    "build": "shx rm -rf dist && tsc -b",
+    "lint": "eslint . --ext .ts",
+    "postpack": "shx rm -f oclif.manifest.json",
+    "posttest": "npm run lint",
+    "prepack": "npm run build && oclif manifest && oclif readme",
+    "prepare": "npm run build",
+    "test": "mocha --forbid-only \"test/**/*.test.ts\"",
+    "version": "oclif readme && git add README.md"
+  },
+  "version": "0.0.49",
+  "bugs": "https://github.com/opensouls/platform/issues",
+  "keywords": [
+    "socialagi",
+    "cli",
+    "soul-engine",
+    "soulengine",
+    "ai"
+  ],
+  "types": "dist/index.d.ts"
+}

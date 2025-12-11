@@ -1,0 +1,93 @@
+# Subprocesses
+
+Subprocesses are a set of `MentalProcess` functions launched in the background following each run of the main-thread `MentalProcess` they are interrupted by any incoming perceptions.
+You create a subprocess by placing it in the `subprocesses` directory of the soul. The behavior of `subprocesses` is the following:
+
+- They operate on the `WorkingMemory`, identical to the main-threaded process
+- Each subprocess runs in order of the `subprocesses` directory (alphabetical).
+- Any new incoming `Perception` terminates execution of the entire `subprocesses` execution.
+
+As an example, consider a `MentalProcess` that continuously learns about the user the soul is speaking with:
+
+```typescript filename="subprocesses/learnsAboutTheUser.ts"
+import { ChatMessageRoleEnum, createCognitiveStep, indentNicely, MentalProcess, useActions, useProcessMemory, WorkingMemory } from "@opensouls/engine";
+
+// Write a custom cognitive function that will keep notes about a user
+const userNotes = createCognitiveStep(() => {
+  return {
+    command: ({ soulName: name}: WorkingMemory) => {
+      return {
+        role: ChatMessageRoleEnum.System,
+        content: indentNicely`
+          Model the mind of ${name}.
+
+          ## Description
+          Write an updated and clear set of notes on the user that ${name} would want to remember.
+
+          ## Rules
+          * Keep descriptions as bullet points
+          * Keep relevant bullet points from before
+          * Use abbreviated language to keep the notes short
+          * Do not write any notes about ${name}
+
+          Please reply with the updated notes on the user:
+        `,
+      }
+    },
+    postProcess: async (_workingMemory, response: string) => {
+      return [
+        {
+          role: ChatMessageRoleEnum.Assistant,
+          content: response
+        },   
+        response
+      ]
+    }
+  }
+})
+
+const learnsAboutTheUser: MentalProcess = async ({ workingMemory }) => {
+  const userModel = useProcessMemory("Unkown User")
+  const { log } = useActions()
+
+  let finalMemory = workingMemory
+
+  workingMemory = workingMemory.withMemory({
+    role: ChatMessageRoleEnum.Assistant,
+    content: indentNicely`
+      ${step.soulName} remembers:
+
+      ## User model
+
+      ${userModel.current}
+    `
+  })
+
+  const [,learnedSomethingNew] = await mentalQuery(
+    step,
+    `${step.soulName} has learned something new and they need to update the mental model of the user.`
+  )
+
+  log("Update model?", learnedSomethingNew)
+  if (learnedSomethingNew) {
+    let monologue
+    [workingMemory, monologue] = await internalMonologue(step,
+      {
+        instructions: "What have I learned specifically about the user from the last few messages?",
+        verb: "noted"
+      }
+    )
+    log("User Learnings:", monologue)
+    const [, notes] = await userNotes(step)
+    userModel.current = notes
+  }
+
+  const [, needsToChange] = await mentalQuery(step,
+    `${step.soulName} thinks they to make changes to their behavior.`
+  )
+
+  return finalMemory
+}
+
+export default learnsAboutTheUser
+```

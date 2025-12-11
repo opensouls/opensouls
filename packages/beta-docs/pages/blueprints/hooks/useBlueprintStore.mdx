@@ -1,0 +1,73 @@
+# useBlueprintStore
+
+The `useBlueprintStore` hook provides a blueprint-wide persistent memory store with embedded vector search. This memory is shared across all souls belonging to a blueprint.
+
+Here is a basic usage of the store.
+
+```typescript filename="exampleProcess.ts"
+import { useBlueprintStore } from "@opensouls/engine"
+
+const exampleProcess: MentalProcess = async ({ workingMemory }) => {
+  // access a blueprint-wide vector store
+  const { fetch, set } = useBlueprintStore()
+
+  // this counter will be shared across all souls in the blueprint
+  const count = (await fetch("count")) || 0
+  // do stuff ...
+
+  // this will change the value of "count" for all souls in the blueprint
+  set("count", count + 1)
+
+  // rest of the mental process
+  // ...
+  return workingMemory
+}
+
+export default exampleProcess
+```
+
+Whenever a piece of content is added to the blueprint store, it is lazily embedded afterwards. This content can be searched by any soul in the blueprint. Here's an example demonstrating trivial vector search post embedding:
+
+```typescript filename="vectorIntro.ts"
+import { externalDialog } from "./lib/cognitiveSteps.ts"
+import { useActions, useProcessManager, useBlueprintStore } from "@opensouls/engine"
+
+const vectorIntro: MentalProcess = async ({ workingMemory }) => {
+  const { speak, log } = useActions()
+  const { invocationCount, wait } = useProcessManager()
+  const { set, fetch, search } = useBlueprintStore()
+
+  if (invocationCount === 0) {
+    // this value will be accessible to all souls in the blueprint
+    set("test-key", "I just love pumpkins.", { test: "metadata" })
+
+    // waiting a moment because the embedding is done lazily
+    await wait(1000)
+  }
+
+  // fetch the content of a key from the blueprint store
+  const testKey = await fetch("test-key")
+
+  // perform blueprint-wide vector search
+  searched = await search("I love pumpkins")
+
+  log("searched", searched)
+  // [{
+  //   key: "test-key"
+  //   content: "I just love pumpkins"
+  //   similarity: 0.8
+  //   metadata: { // ...  }
+  // }]
+  
+  const [finalMemory, response] = await externalDialog(workingMemory, `Communicate the following: ${testKey}`)
+
+  speak(response)
+  return finalMemory
+}
+```
+
+Additionally, `useBlueprintStore` has two more useful methods:
+- `remove: (key: string) => Promise<void>`
+- `createEmbedding: (content: string) => Promise<Embedding>`
+
+And metadata about an object can be accessed via `await fetch("key", { includeMetadata: true })`.

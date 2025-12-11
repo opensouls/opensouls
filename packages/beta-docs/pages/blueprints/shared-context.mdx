@@ -1,0 +1,105 @@
+import { Callout } from 'nextra/components'
+
+# Shared Context
+
+Shared Context is a reactive store that enables real-time data sharing across multiple souls and applications. It provides a seamless way to maintain synchronized state between different components of your system, both within the Soul Engine and in external applications.
+
+## Setting up Shared Context in a project
+
+### 1. Authenticate with JWT
+
+Refer to the [JWT Authentication](/souls/jwt-authentication) guide to setup JWT Authentication for your project. 
+
+If you are using the default shared context name (orgslug.blueprintname.soulid) then the jwt will be the same for the shared context as it is for the soul. If your shared context name is *not* the default, you will need to issue a separate JWT for the shared context.
+
+Using `@opensouls/react`, setup a `SoulEngineProvider` at the top of your component tree, making sure you pass in the callback function to generate the JWT.
+
+Here's an example of how to setup the `SoulEngineProvider` in a Next.js project:
+
+```tsx
+<SoulEngineProvider
+  organization={env.NEXT_PUBLIC_SOUL_ENGINE_ORGANIZATION}
+  sharedContextToken={() => createTokenServerAction(session.soulId)}
+>
+  {/* Your component tree here */}
+</SoulEngineProvider>
+```
+
+The `createTokenServerAction` function is a server action that generates a JWT for the given soul by calling `issueTokenForEngine`, just like what we did in the [JWT Authentication](/souls/jwt-authentication) guide:
+
+```tsx
+"use server";
+import "server-only";
+
+import { issueTokenForEngine } from "@opensouls/soul";
+
+export async function createTokenServerAction(soulId: string) {
+  return issueTokenForEngine({
+    privateKey: process.env.SOUL_ENGINE_JWT_PRIVATE!,
+    issuer: process.env.SOUL_ENGINE_JWT_ISSUER!,
+    organization: process.env.NEXT_PUBLIC_SOUL_ENGINE_ORGANIZATION!,
+    blueprint: process.env.NEXT_PUBLIC_SOUL_ENGINE_BLUEPRINT!,
+    soulId,
+  });
+}
+```
+
+### 2. Accessing the Shared Context in your application
+
+Connect your frontend application to the Shared Context by using the `useSharedContext` hook.
+
+```tsx
+// use this convention to access the soul's default Shared Context
+export const makeSharedContextName = (soulId: string) =>
+  [
+    env.NEXT_PUBLIC_SOUL_ENGINE_ORGANIZATION,
+    env.NEXT_PUBLIC_SOUL_ENGINE_BLUEPRINT,
+    soulId,
+  ].join(".")
+
+// ...
+
+type MyStateShape = { myData: { prop1: string } }
+
+function MyComponent({ soulId }: { soulId: string }) {
+  const state = useSharedContext<MyStateShape>(makeSharedContextName(soulId));
+
+  const someHandler = async () => {
+    await state.sharedContext.ready;
+
+    // this will update this Shared Context everywhere
+    state.data.myData.prop1 = "hello";
+  }
+
+  // ...
+}
+```
+
+<Callout emoji="⚠️">
+  Make sure the SoulEngineProvider is setup higher up in the component tree before using the `useSharedContext` hook.
+</Callout>
+
+### 3. Accessing the Shared Context in the Soul Engine
+
+In the Soul Engine, you access the soul's default Shared Context by using the `useSharedContext` function without specifying the Shared Context name.
+
+```tsx
+import { useSharedContext } from "@opensouls/engine";
+
+type MyStateShape = { myData: { prop1: string } }
+
+const initialProcess: MentalProcess = async ({ workingMemory }) => {
+  const { ready, data} = useSharedContext<MyStateShape>();
+
+  await ready;
+
+  // this will update this Shared Context everywhere
+  data.myData.prop1 = "goodbye";
+
+  // ...
+}
+```
+
+<Callout emoji="💡">
+A Shared Context is not limited to a single soul. You can invoke `useSharedContext` with the same name across multiple souls so they can all read and write to the same Shared Context. However, the JWT issuance will be different than what is used between the soul and the default shared context.
+</Callout>

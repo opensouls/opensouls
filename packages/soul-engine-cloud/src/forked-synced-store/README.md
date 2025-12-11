@@ -1,0 +1,1 @@
+see: https://github.com/tobowers/SyncedStore/tree/feature/allow-writing-arrays

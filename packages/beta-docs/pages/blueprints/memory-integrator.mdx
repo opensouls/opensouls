@@ -1,0 +1,156 @@
+# Memory Integrator
+
+Memory Integrator is an optional, powerful tool scaffolded into every Soul that allows you to manage your Soul's memory. It is a function that is called on every perception, and allows you to setup regions, manage memory, control the flow of your Soul's execution, and more.
+
+## Parameters
+
+The Memory Integrator function receives an object with the following properties:
+```typescript
+type MemoryIntegrator = (params: MemoryIntegratorParameters) => Promise<[WorkingMemory, MentalProcess, MentalProcessReturnOptions?]>
+interface MemoryIntegratorParameters {
+  perception: Perception
+  workingMemory: WorkingMemory
+  currentProcess: MentalProcess
+  soul: Soul
+}
+```
+
+1. `perception`: A `Perception` object representing the incoming event.
+   - Properties include: `name`, `action`, `content`, `_timestamp`, `_metadata`, `internal`, etc.
+
+2. `workingMemory`: A `WorkingMemory` object representing the current state of the Soul's memory. Read [Working Memory](../core/working-memory.mdx) for more information.
+   - Methods include: `withRegion()`, `withMemory()`, `withRegionalOrder()`, `withoutRegions()`, etc.
+
+3. `currentProcess`: The current `MentalProcess` that was active before the perception was received.
+
+4. `soul`: A `Soul` object containing information about the Soul. Read [Soul.ts](./soul-ts.mdx) for more information.
+   - Properties include: `name`, `attributes`, `staticMemories`, `env`, etc.
+
+## Return Values
+
+The Memory Integrator should return a tuple containing:
+1. The updated `WorkingMemory`
+2. The `MentalProcess` to execute next (can be the same as `currentProcess`)
+3. (Optional) `MentalProcessReturnOptions` for additional control
+
+## Default Memory Integrator
+
+When creating a new soul via `bunx @opensouls/cli init <soulName>`, a default Memory Integrator file is created for you. This default Memory Integrator sets up a "core" [Region](../core/regions.mdx) and adds the incoming perception to the [Working Memory](../core/working-memory.mdx)
+
+```typescript filename="soul/memoryIntegrator.ts"
+import { ChatMessageRoleEnum, MemoryIntegrator } from "@opensouls/engine"
+
+function safeName(name?: string) {
+  return (name || "").replace(/[^a-zA-Z0-9_-{}]/g, '_').slice(0, 62);
+}
+
+const memoryIntegrator: MemoryIntegrator = async ({ perception, workingMemory, currentProcess, soul }) => {
+  workingMemory = workingMemory.withRegion("core", {
+    role: ChatMessageRoleEnum.System,
+    content: soul.staticMemories.core,
+  }).withRegionalOrder("core", "summary", "default")
+  
+  const content = `${perception.name} ${perception.action}: "${perception.content}"`
+
+  workingMemory = workingMemory.withMemory({
+    role: perception.internal ? ChatMessageRoleEnum.Assistant : ChatMessageRoleEnum.User,
+    content,
+    ...(perception.name ? { name: safeName(perception.name) } : {}),
+    metadata: {
+      ...perception._metadata,
+      timestamp: perception._timestamp
+    }
+  })
+
+  return [workingMemory, currentProcess]
+}
+
+export default memoryIntegrator
+```
+
+## Expanding the Memory Integrator
+
+The default memory integrator gets your soul off the ground, but this is only the beginning. You can expand the memory integrator to setup regions for your soul, control specific [Mental Process](../blueprints/mental-processes.mdx), call cognitive steps, and more.
+
+Since the memory Integrator is called on every perception, you will want to make sure you are not adding too much overhead to your soul's execution, but generally speaking anything you can do in a Mental Process or Cognitive Step can be done in the Memory Integrator.
+
+### Example: Force a Mental Process
+
+For one example, you could use the memory Integrator to force a specific Mental Process when a certain perception comes in
+
+```typescript filename="soul/memoryIntegrator.ts"
+import { ChatMessageRoleEnum, MemoryIntegrator, PerceptionProcessor } from "@opensouls/engine"
+import analysisMode from "./mentalProcesses/analysisMode"
+
+function safeName(name?: string) {
+  return (name || "").replace(/[^a-zA-Z0-9_-{}]/g, '_').slice(0, 62);
+}
+
+const memoryIntegrator: MemoryIntegrator = async ({ perception, workingMemory, currentProcess, soul }) => {
+  workingMemory = workingMemory.withRegion("core", {
+    role: ChatMessageRoleEnum.System,
+    content: soul.staticMemories.core,
+  }).withRegionalOrder("core", "summary", "emotionalSystem", "default")
+  
+  const content = `${perception.name} ${perception.action}: "${perception.content}"`
+
+  workingMemory = workingMemory.withMemory({
+    role: perception.internal ? ChatMessageRoleEnum.Assistant : ChatMessageRoleEnum.User,
+    content,
+    ...(perception.name ? { name: safeName(perception.name) } : {}),
+    metadata: {
+      ...perception._metadata,
+      timestamp: perception._timestamp
+    }
+  })
+
+  if (perception.action === "analysisMode") {
+    return [workingMemory, analysisMode]
+  }
+
+  return [workingMemory, currentProcess]
+}
+
+export default memoryIntegrator
+```
+
+### Example: Dynamic Regions
+
+As another example, you could use the Memory Integrator to setup regions based on the incoming perception or what Mental Process is currently running
+
+```typescript filename="soul/memoryIntegrator.ts"
+import { ChatMessageRoleEnum, MemoryIntegrator } from "@opensouls/engine"
+import analysisMode from "./mentalProcesses/analysisMode"
+
+function safeName(name?: string) {
+  return (name || "").replace(/[^a-zA-Z0-9_-{}]/g, '_').slice(0, 62);
+}
+
+const memoryIntegrator: MemoryIntegrator = async ({ perception, workingMemory, currentProcess, soul }) => {
+  workingMemory = workingMemory.withRegion("core", {
+    role: ChatMessageRoleEnum.System,
+    content: soul.staticMemories.core,
+  }).withRegionalOrder("core", "summary", "emotionalSystem", "default")
+  
+  const content = `${perception.name} ${perception.action}: "${perception.content}"`
+
+  workingMemory = workingMemory.withMemory({
+    role: perception.internal ? ChatMessageRoleEnum.Assistant : ChatMessageRoleEnum.User,
+    content,
+    ...(perception.name ? { name: safeName(perception.name) } : {}),
+    metadata: {
+      ...perception._metadata,
+      timestamp: perception._timestamp
+    }
+  })
+
+  if (currentProcess === "analysisMode") {
+    const noEmotions = workingMemory.withoutRegions(["emotionalSystem"])
+    return [noEmotions, analysisMode]
+  }
+
+  return [workingMemory, currentProcess]
+}
+
+export default memoryIntegrator
+```

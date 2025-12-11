@@ -1,0 +1,58 @@
+@media (max-width: 800px) {
+  .disappear-when-small {
+    display: none;
+  }
+}
+
+.chatMessage {
+  border-radius: 1px;
+}
+
+@keyframes popInOut {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.infoMessage {
+  border-radius: 1px;
+  background-color: black;
+}
+
+/* Radix Vertical and Horizontal Separators */
+.SeparatorRoot {
+  background-color: var(--slate-4);
+}
+.SeparatorRoot[data-orientation="horizontal"] {
+  height: 1px;
+  width: 100%;
+}
+.SeparatorRoot[data-orientation="vertical"] {
+  height: 100%;
+  width: 1px;
+}
+
+/* Subroutine Ping */
+
+@keyframes ping {
+  0% {
+    transform: scale(1);
+    opacity: 0;
+  }
+  25% {
+    transform: scale(1); /* Adjust the scale at this point for a slower pulse */
+    opacity: 0.3; /* Adjust the opacity at this point for a slower pulse */
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(1); /* Adjust the scale at this point for a slower pulse */
+    opacity: 0.3; /* Adjust the opacity at this point for a slower pulse */
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}

@@ -1,0 +1,168 @@
+import { Callout } from 'nextra/components'
+
+# Upgrading to @opensouls/engine
+
+> **Note:** Read more about the new `@opensouls/core` (replacing `socialagi`) [here](/core).
+
+This doc will cover the key information you need to upgrade your blueprints to the new engine and [`WorkingMemory`](/core/working-memory) style of blueprints.
+
+## Differences
+
+### Major
+* There is no more CortexStep (and no more socialagi npm package). Instead, your MentalProcesses will be passed a [`WorkingMemory`](/core/working-memory) object.
+* There are no more default CognitiveFunctions imported from socialagi (like externalDialog, etc). Instead, you copy and paste [`CognitiveStep`s](/core/cognitive-step) from [the community library](https://github.com/opensouls/community/tree/main/library/cognitiveSteps)
+* `soul-engine` command line program now supports `install` to easily add community cognitiveSteps to your `soul/lib` directory (eg `npx soul-engine install cognitiveStep/externalDialog`)
+* Your own custom CognitiveFunctions should be replaced by [`CognitiveStep`s](/core/cognitive-step)
+* `socialagi` should not be used and instead everything you need is exported by `@opensouls/engine`
+* In your client apps, do not import `soul-engine/soul` anymore and instead import `@opensouls/soul` (or just `@opensouls/engine` if you prefer, as soul is re-exported from there). The exports are the same and continue to work in the same manner.
+
+### Minor
+* no need for `common-tags` anymore as `indentNicely` is exported from `@opensouls/engine` and behaves the same as the old `html` tag used to.
+
+## Example MentalProcess Upgrade
+
+<Callout type="info" emoji="ℹ️">
+  Notice in the new WorkingMemory style that `externalDialog` is imported from a local directory. Our [community library](https://github.com/opensouls/community/tree/main/library/cognitiveSteps) has many pre-built `CognitiveStep`s
+</Callout>
+
+### Old `socialagi` style (to replace)
+
+```ts filename="initialProcess.ts"
+import { externalDialog } from "socialagi";
+import { MentalProcess, useActions } from "soul-engine";
+
+const provokesSpeaker: MentalProcess = async ({ step: initialStep }) => {
+  const { speak  } = useActions()
+
+  const { stream, nextStep } = await initialStep.next(externalDialog("Talk to the user trying to gain trust and learn about their inner world."), { stream: true, model: "gpt-4-0125-preview" });
+  speak(stream);
+
+  return nextStep
+}
+
+export default provokesSpeaker
+```
+
+### New `WorkingMemory` Style
+
+Things to notice:
+* No more `socialagi`
+* `externalDialog` imported from a local directory
+* `provokesSpeaker` receives a `WorkingMemory` instead of (the now deprecated) `CortexStep`
+* return types from `CognitiveStep`s (`externalDialog`) are now positional Arrays instead of objects or `CortexSteps`
+
+First, install the community `externalDialog` cognitiveStep:
+```bash copy
+npx soul-engine install cognitiveStep/externalDialog
+```
+
+```ts filename="initialProcess.ts" copy
+import { MentalProcess, useActions } from "@opensouls/engine";
+import externalDialog from "./lib/externalDialog.js";
+
+const provokesSpeaker: MentalProcess = async ({ workingMemory }) => {
+  const { speak  } = useActions()
+
+  const [withDialog, stream] = await externalDialog(workingMemory, "Talk to the user trying to gain trust and learn about their inner world.", { stream: true, model: "gpt-4-0125-preview" });
+  speak(stream);
+
+  return withDialog;
+}
+
+export default provokesSpeaker
+```
+
+## Example custom CognitiveFunction to CognitiveStep upgrade
+
+### Old `socialagi` style (to replace)
+```ts
+const userNotes = () => () => ({
+  command: ({ entityName: name }: CortexStep) => {
+    return html`
+      Model the mind of ${name}.
+      
+      ## Description
+      Write an updated and clear set of notes on the user that ${name} would want to remember.
+
+      ## Rules
+      * Keep descriptions as bullet points
+      * Keep relevant bullet points from before
+      * Use abbreviated language to keep the notes short
+      * Do not write any notes about ${name}
+
+      Please reply with the updated notes on the user:'
+  `},
+  process: (_step: CortexStep<any>, response: string) => {
+    return {
+      value: response,
+      memories: [{
+        role: ChatMessageRoleEnum.Assistant,
+        content: response
+      }],
+    }
+  }
+})
+```
+
+### New `WorkingMemory` style
+
+Things to notice:
+* uses the new `createCognitiveStep` function exported from `@opensouls/engine`
+* the return of the command is different now, and will return a full `Memory` and not just a string
+* `html` replaced by `indentNicely`
+* `postProcess` replaces `process` and has a different return type (returns a single `Memory` and the value as an `Array`)
+
+```ts copy
+import { createCognitiveStep, indentNicely } from "@opensouls/engine"
+
+const userNotes = createCognitiveStep(() => {
+  return {
+    command: ({ soulName: name }: WorkingMemory) => {
+      return {
+        role: ChatMessageRoleEnum.System,
+        content: indentNicely`
+          Model the mind of ${name}.
+
+          ## Description
+          Write an updated and clear set of notes on the user that ${name} would want to remember.
+        
+          ## Rules
+          * Keep descriptions as bullet points
+          * Keep relevant bullet points from before
+          * Use abbreviated language to keep the notes short
+          * Do not write any notes about ${name}
+        
+          Please reply with the updated notes on the user:'
+        `
+      }
+    },
+    postProcess: async (_mem: WorkingMemory, response: string) => {
+      return [
+        {
+          role: ChatMessageRoleEnum.Assistant,
+          content: response
+        },
+        response
+      ]
+    }
+  }
+})
+
+```
+
+## Example package.json update
+
+```bash copy
+npm rm socialagi soul-engine common-tags
+```
+
+```bash copy
+npm install --save @opensouls/engine
+```
+
+Many souls will have a small dependency set like this;
+```json
+  "dependencies": {
+    "@opensouls/engine": "^0.1.0"
+  }
+```

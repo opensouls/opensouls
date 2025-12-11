@@ -1,0 +1,78 @@
+# useOrganizationStore
+
+The `useOrganizationStore` hook provides a organization-wide persistent memory store with embedded vector search. This memory is can be accessed from any soul from any blueprint in the organization.
+
+Here is a basic usage of the store.
+
+```typescript filename="exampleProcess.ts"
+import { useOrganizationStore } from "@opensouls/engine"
+
+const exampleProcess: MentalProcess = async ({ workingMemory }) => {
+  // access a organization-wide vector store
+  const { fetch, set } = useOrganizationStore()
+
+  // this counter will be shared across all souls in the organization
+  const count = (await fetch("count")) || 0
+  // do stuff ...
+
+  // this will change the value of "count" for all souls in the organization
+  set("count", count + 1)
+
+  // rest of the mental process
+  // ...
+  return workingMemory
+}
+
+export default exampleProcess
+```
+
+This is how two completely unrelated souls can share information across blueprints.
+
+```typescript filename="processInBlueprintOne.ts" {1,4-7}
+import { useOrganizationStore } from "@opensouls/engine"
+
+const processInBlueprintOne: MentalProcess = async ({ workingMemory }) => {
+  const { set } = useOrganizationStore()
+
+  // this will be shared with all souls in the organization
+  set("preferredFood", "Burger with fries")
+
+  // rest of the mental process
+  // ...
+  return workingMemory
+}
+```
+
+```typescript filename="processInBlueprintTwo.ts" {1,5-20}
+import { useActions, useOrganizationStore } from "@opensouls/engine"
+
+const processInBlueprintTwo: MentalProcess = async ({ workingMemory }) => {
+  const { log } = useActions()
+  const { fetch, search } = useOrganizationStore()
+
+  const preferredFood = await fetch("preferredFood")
+  log("The user's preferred food is:", preferredFood)
+  // The user's preferred food is: Burger with fries
+
+  // it's also possible to search for similar content
+  const searched = await search("hamburguer")
+
+  log("searched", searched)
+  // [{
+  //   key: "preferredFood"
+  //   content: "Burger with fries"
+  //   similarity: 0.6
+  //   metadata: { // ...  }
+  // }]
+
+  // rest of the mental process
+  // ...
+  return workingMemory
+}
+```
+
+Additionally, `useOrganizationStore` has two more useful methods:
+- `remove: (key: string) => Promise<void>`
+- `createEmbedding: (content: string) => Promise<Embedding>`
+
+And metadata about an object can be accessed via `await fetch("key", { includeMetadata: true })`.

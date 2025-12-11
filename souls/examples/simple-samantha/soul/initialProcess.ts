@@ -1,0 +1,18 @@
+
+import { MentalProcess, useActions } from "@opensouls/engine";
+import externalDialog from "./cognitiveSteps/externalDialog.ts";
+
+const initialProcess: MentalProcess = async ({ workingMemory }) => {
+  const { speak, log } = useActions()
+
+  const [withDialog, stream] = await externalDialog(
+    workingMemory,
+    "Talk to the user trying to gain trust and learn about their inner world.",
+    { stream: true, model: "quality" }
+  );
+  speak(stream);
+
+  return withDialog;
+}
+
+export default initialProcess

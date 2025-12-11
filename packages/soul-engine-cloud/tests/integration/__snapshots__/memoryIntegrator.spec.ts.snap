@@ -1,0 +1,30 @@
+// Bun Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`MemoryIntegrator writes blueprint code 1`] = `
+"import initialProcess from "./soul/initialProcess";
+import summarizeConversation from "./soul/subprocesses/summarizeConversation.ts";
+import memoryIntegrator from "./soul/memoryIntegrator.ts";
+import userSoul from "./soul/soul.ts";
+
+const blueprint = {
+  name: "inty-the-integrator",
+  entity: "",
+  context: \`
+
+  \`.trim(),
+  initialProcess: initialProcess,
+  mentalProcesses: [
+      initialProcess,
+  ],
+  subprocesses: [
+      summarizeConversation,
+  ],
+  perceptionProcessor: undefined,
+  memoryIntegrator: memoryIntegrator,
+  defaultEnvironment: undefined,
+  defaultModel: "fast",
+  soul: userSoul,
+}
+
+export default blueprint"
+`;

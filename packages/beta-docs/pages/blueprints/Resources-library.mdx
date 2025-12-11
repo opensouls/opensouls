@@ -1,0 +1,45 @@
+# Resources Library
+
+Open Souls hosts a repository of often used cognitiveSteps, cognitiveFunctions, perceptionProcessors, pipelines, and subprocesses.
+
+```
+cognitiveSteps/
+    brainstorm.ts
+    conversationNotes.ts
+    createExtractingInstruction.ts
+    decision.ts
+    externalDialog.ts
+    instruction.ts
+    internalMonologue.ts
+    mentalQuery.ts
+    summarize.ts
+    userNotes.ts
+
+cognitiveFunctions/withRagContext
+
+perceptionProcessors/default
+
+pipelines/markdown
+
+subprocesses/summarizeConversation
+```
+
+## Installation
+
+The `soul-engine` command line interface has an `install` command which lets you easily add these files to your own souls like so:
+
+```bash
+bunx soul-engine install <pathToFile>
+```
+
+for example:
+
+```bash
+bunx soul-engine install cognitiveSteps/externalDialog
+```
+
+You can also install multiple files at once:
+
+```bash
+bunx soul-engine install cognitiveSteps/externalDialog cognitiveSteps/internalMonologue subprocesses/summarizeConversation
+```

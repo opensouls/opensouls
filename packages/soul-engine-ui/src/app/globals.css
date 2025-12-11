@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("./cabinet-grotesk.css");
+@import url("./intel-one-mono.css");
+
+:root {
+  box-sizing: border-box;
+}
+
+/* Create New Soul Login Fade In and Transition Up */
+
+.fadeIn {
+  opacity: 0;
+  transform: translateY(100px);
+  animation: fadeInAnimation ease-out 0.5s;
+  animation-fill-mode: forwards;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.hide-scrollbar {
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+  scrollbar-width: none; /* Firefox */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+
+@keyframes fadeInAnimation {
+  0% {
+    opacity: 0;
+    transform: translateY(20px); /* Start 20px down */
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0); /* End at the element's normal position */
+  }
+}

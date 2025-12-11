@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "types": ["node"],
+    "resolveJsonModule": true,
+    "moduleResolution": "Node16",
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*", "tests/**/*", "scripts/**/*", "soul/**/*"],
+  "exclude": ["node_modules"]
+}

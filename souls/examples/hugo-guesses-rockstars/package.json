@@ -1,0 +1,24 @@
+{
+  "name": "hugo-guesses-rockstars",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "description": "Hugo guesses the musician you're thinking of using the Soul Engine",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@opensouls/cli": "workspace:*",
+    "@opensouls/engine": "workspace:*"
+  },
+  "soulEngine": {
+    "defaultModel": "quality"
+  }
+}

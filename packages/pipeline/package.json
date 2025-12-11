@@ -1,0 +1,42 @@
+{
+  "name": "@opensouls/pipeline",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/opensouls/platform.git",
+    "directory": "packages/pipeline"
+  },
+  "version": "0.1.69",
+  "type": "module",
+  "description": "Publish and sync data with the Soul Engine.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@microsoft/api-extractor": "^7.43.1",
+    "@types/glob": "^8.1.0",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "fs-extra": "^11.2.0",
+    "glob": "^10.3.12"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

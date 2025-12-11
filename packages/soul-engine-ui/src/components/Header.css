@@ -1,0 +1,11 @@
+@media (max-width: 830px) {
+  .disappear-when-small {
+    display: none;
+  }
+}
+
+@media (max-width: 550px) {
+  .disappear-when-tiny {
+    display: none;
+  }
+}

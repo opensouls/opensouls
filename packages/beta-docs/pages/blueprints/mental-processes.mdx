@@ -1,0 +1,68 @@
+# Guiding your soul's cognition
+
+The `MentalProcess` API gives a powerful and functional way to specify stateful behavior of a soul, triggered by an external `Perception`. Each incoming perception from the client side gets added to a queue to be processed by the current `MentalProcess`. A `MentalProcess` can (optionally) set the next MentalProcess in its return. Think of the `Soul` as a state machine and each of the `MentalProcess`es are individual states, and the soul can programtically transition from one state to another.
+
+## Main thread process
+
+Importantly, a soul only ever has a single (main-threaded) active `MentalProcess`, which defines the current behavior set. When a `MentalProcess` executes, it operates on the current `WorkingMemory`, returning a new `WorkingMemory`.
+
+import { Callout } from 'nextra/components'
+ 
+<Callout type="info" emoji="ℹ️">
+As the `WorkingMemory` grows with new memories, the oldest memories are compressed and stored to potentially be recalled
+</Callout>
+
+During operation on the `WorkingMemory`' (a [WorkingMemory](/core) managed by the Soul Engine), a soul will often generate new memories with CognitiveSteps like `internalMonologue` or `externalDialog` and take actions like `speak`.
+
+Every mental process is defined and exported as its own file:
+
+```typescript filename="mentalProcesses/exampleProcess.ts"
+import { MentalProcess } from "@opensouls/engine"
+
+const exampleProcess: MentalProcess = async ({ workingMemory, params }) => {
+  // operations on the working memory step ...
+
+  return workingMemory
+}
+
+export default exampleProcess
+```
+
+*Parameters*:
+- `workingMemory`: the current instance of `WorkingMemory`, containing the latest `Perception` to operate on
+- `params`: static props passed into the `MentalProcess`, e.g. `{ wasProvoked: true }`
+
+## Mental Process Return Types
+
+A mentalProcess controls the state of the soul's workingMemory, and also can (optionally) transition the soul into a new mental state (a different MentalProcess).
+
+Possible return types for a MentalProcess are:
+
+- A `WorkingMemory` instance, indicating the updated state of the soul's memory after processing.
+- A tuple of `[WorkingMemory, MentalProcess]`, allowing the current process to specify the next `MentalProcess`, alongside the updated `WorkingMemory`.
+- A tuple of `[WorkingMemory, MentalProcess<ParamType>, {...params, executeNow }]`, which, in addition to specifying the next `MentalProcess` and the updated `WorkingMemory`, allows for additional params to be passed and to (optionally) execute that next mentalProcess right now before exiting this mainThread run.
+
+## Example
+
+```ts filename="initialProcess.ts"
+const introduction: EngineProcess<any, CortexStep> = async ({ workingMemory }) => {
+  const { speak } = useActions()
+
+  const [output, result] = await instruction(workingMemory, "Say a beautiful hello")
+  speak(result)
+  return [output, aDifferentProcess]
+}
+```
+
+```ts filename="mentalProcesses/aDifferentProcess.ts"
+const aDifferentProcess: EngineProcess = async ({ workingMemory }) => {
+  const { speak, log } = useActions()
+
+  log("different process")
+  const [output, result] = await instruction(workingMemory, "say hello from the different process")
+  speak(result)
+  return [output, introduction, { executeNow: true }]
+}
+```
+
+Notice how introduction will switch the MentalProcess to `aDifferentProcess` right after speaking. The next incoming perception will go to the `aDifferentProcess` mental process. However, the `aDifferentProcess` uses `{ executeNow: true }` so when it executes, it will not only set the mental process back to `introduction` but will also execute initialProcess immediately (using the same invoking perception).

@@ -1,0 +1,50 @@
+# useTool
+
+The `useTool` hook allows you to add blocking tool calls from the soul's blueprint code to your local client code. You register a tool on your client side code, and you can call that tool from your blueprint code in a blocking way, allowing you to do things like call browsers, play sounds, add calendar events, etc.
+
+## Example Client Side (Soul) Code
+
+First you register your tool on your soul, making it available to your blueprint code. This code is executed on your *client* not in the Soul Engine.
+
+```typescript
+const soul = new Soul({
+  organization: "tobowers",
+  blueprint: "readerman",
+  token: process.env.SOUL_ENGINE_TOKEN,
+});
+
+soul.registerTool("visit", async ({ url }: { url: string }) => {
+  console.log("visiting", url);
+  const { markdown } = await this.mustLoader().visit(url);
+  return {
+    markdown
+  }
+});
+```
+
+
+## Example Blueprint Code
+
+You can then call that tool in a blocking way from your blueprint code.
+
+```typescript filename="readsAPage.ts" {5, 9}
+import { MentalProcess, useActions, useProcessManager, useSoulMemory, useTool } from "@opensouls/engine";
+
+const readsAPage: MentalProcess = async ({ workingMemory }) => {
+  const { speak, log } = useActions();
+  const visit = useTool<{ url: string }, { markdown: string }>("visit");
+
+  log("dispatching visit", siteToVisit.current);
+
+  const initialPage = await visit({ url: "https://google.com" });
+
+  log("after visit", initialPage.markdown);
+  speak(Visited ${siteToVisit.current});
+  workingMemory
+  
+  return workingMemory;
+};
+export default readsAPage;
+```
+
+There is currently a 30s timeout for a response from your client code.

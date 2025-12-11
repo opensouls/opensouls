@@ -1,0 +1,9 @@
+{
+  "extends": ["oclif", "oclif-typescript", "prettier"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "off",
+    "perfectionist/sort-interfaces": "off",
+    "perfectionist/sort-objects": "off",
+    "perfectionist/sort-enums": "off"
+  }
+}

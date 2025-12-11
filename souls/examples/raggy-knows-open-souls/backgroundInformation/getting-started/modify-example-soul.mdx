@@ -1,0 +1,80 @@
+import { Callout } from 'nextra/components'
+
+# Modify the Samantha example soul
+
+As an introduction to the soul development process with the Soul Engine, we'll make a few changes to Samantha's speaking style and see how it affects her behavior.
+
+## Preparation
+
+Make sure the `soul-engine dev` process is running so the changes you make take effect. Every time you save a file, your changes are automatically synchronized with the Soul Engine servers.
+
+```mermaid
+flowchart LR
+
+yourComputer("Your computer running \n soul-engine dev")
+soulEngine("Soul Engine servers\n\n(Samantha is running here)")
+debugger("Debugger UI \n\n (The interface where you're \n interacting with Samantha)")
+
+yourComputer -- Automatic code sync --> soulEngine
+debugger --> soulEngine
+soulEngine --> debugger
+```
+
+## Modify Samantha's speaking style
+
+Update Samantha's blueprint to change her speaking style. In this example we're making her talk in a pompous, overly formal way:
+
+```markdown filename="souls/samantha-learns/soul/Samantha.md"
+You are modeling the mind of Samantha.
+
+## Conversational Scene
+Samantha is a little bit on edge, sometimes provoking the conversant.
+
+## Samantha's Speaking Style
+* Samantha speaks in an extremely pompous, overly formal way, using big words and complex sentences.
+* Samantha texts MAX 1-2 sentences at a time
+```
+
+When you save the blueprint, you should see something like this in the terminal:
+
+![](/images/guide/modify-example-soul/01-save-blueprint.png)
+
+With the changes applied, notice how updating the blueprint affected not only Samantha's speaking style but also her internal thoughts:
+
+![](/images/guide/modify-example-soul/02-updated-blueprint.png)
+
+This is because the blueprint is always present in Samantha's working memory, influencing all her cognitive steps.
+
+## Change Samantha's behavior towards the interlocutor
+
+Even though Samantha's speaking style is now more pompous, she still answers in a mostly agreeable way. Let's change her behavior towards her conversation partner by updating the `externalDialog`'s instructions:
+
+```typescript filename="souls/samantha-learns/soul/initialProcess.ts"
+const [withDialog, stream] = await externalDialog(
+  workingMemory,
+  "Answer by insulting the user in a veiled way, using grandiloquence to mask your provocation.",
+  { stream: true, model: "quality", provoke: true }
+);
+```
+
+This change will make Samantha more provocative in her interactions:
+
+![](/images/guide/modify-example-soul/03-updated-dialog.png)
+
+Now click the "Rewind" button that's right above your last message and try saying something different to see how Samantha will answer:
+
+![](/images/guide/modify-example-soul/04-rewind-and-retry.png)
+
+## Samantha doesn't need your computer to run
+
+Stop the execution of the `soul-engine dev` process by pressing `Ctrl + C` in the terminal:
+
+![](/images/guide/modify-example-soul/05-terminal.png)
+
+Now try speaking to Samantha again. You'll see that she continues to answer in the same way as before, even though you've stopped the process:
+
+![](/images/guide/modify-example-soul/06-samantha-is-alive.png)
+
+Samantha's soul has been running on the Soul Engine servers since you ran `soul-engine dev` for the first time. While `soul-engine dev` is running, any changes you make will be automatically synchronized with the servers.
+
+Updates made while the process is stopped will **not** take effect until you start it again.

@@ -1,0 +1,59 @@
+# Perception Processor
+
+The perception processor is an optional, powerful, advanced tool to control how working memory is added to your soul upon receiving new perceptions.
+The Soul Engine comes with a default `PerceptionProcessor` so you don't need to worry about this if your soul doesn't have a need.
+
+However, for some advanced cases the `PerceptionProcessor` is a great tool. For example, if you want to have the known name of the interloctutor saved into working memory instead of "interlocutor said: ..." the working memory could become "Donny said: ..." The `PerceptionProcessor` is also useful in cases where you might not want to store every single perception to working memory, but instead do some pre-processing to that perception.
+
+The `PerceptionProcessor` function takes in an object containing three properties as its input:
+1. `perception`: This is the incoming perception that needs to be processed. It contains details about the event or data that the soul has perceived.
+2. `workingMemory`: This represents the current state of the soul's memory. It is where the processed perceptions are stored.
+3. `currentProcess`: This is the current mental process that the soul is executing. It can be used to modify the flow of mental processes based on the perception.
+
+The output of the `PerceptionProcessor` is a tuple containing:
+1. The updated `workingMemory` after the perception has been processed and potentially added to it.
+2. An optional `MentalProcess` which can be the same as the input if no change is needed, or a new process if the perception dictates a change in the soul's mental processing.
+3. The optional params to pass to the new `MentalProcess`
+
+You can also return `undefined` from the perceptionProcessor and no additional processing will occur (and nothing will be added to the working memory).
+
+You can use all of available hooks in your `perceptionProcessor`.
+
+## Example
+
+In this example, we'll use the soul memory to update the name of the interlocutor if it's available (presumably set in a different `MentalProcess`).
+
+```ts filename="soul/perceptionProcessor.ts"
+import { ChatMessageRoleEnum, InputMemory, Memory, PerceptionProcessor, useActions, useSoulMemory } from "@opensouls/engine"
+
+function safeName(name?: string) {
+  return (name || "").replace(/[^a-zA-Z0-9_-{}]/g, '_').slice(0, 62);
+}
+
+const perceptionProcessor: PerceptionProcessor = async ({ perception, workingMemory, currentProcess }) => {
+  const { log } = useActions()
+  const userName = useSoulMemory("userName", "")
+
+  log("perception processor ran")
+
+  const name = userName.current ? userName.current : perception.name
+
+  const content = `${name} ${perception.action}: ${perception.content}`
+
+  const memory: InputMemory = {
+    role: perception.internal ? ChatMessageRoleEnum.Assistant : ChatMessageRoleEnum.User,
+    content,
+    ...(name ? { name: safeName(name) } : {}),
+    metadata: {
+      ...perception._metadata,
+      timestamp: perception._timestamp
+    }
+  }
+
+  workingMemory = workingMemory.withMemory(memory)
+
+  return [workingMemory, currentProcess]
+}
+
+export default perceptionProcessor
+```

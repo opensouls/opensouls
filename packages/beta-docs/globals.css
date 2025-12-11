@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("./cabinet-grotesk.css");
+@import url("./intel-one-mono.css");
+
+:root {
+  box-sizing: border-box;
+}
+
+/* Hide the button containing the internal hidden link */
+button:has(> .internal-link-hidden) {
+  display: none !important;
+}
+
+/* Hide the li containing the button with the internal hidden link */
+li:has(> button > .internal-link-hidden) {
+  display: none !important;
+}
+
+/* Hide any potential nested ul elements */
+.internal-link-hidden + ul {
+  display: none !important;
+}

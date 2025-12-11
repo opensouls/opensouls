@@ -1,0 +1,90 @@
+// Bun Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`BlueprintWriter writes blueprint code 1`] = `
+"import initialProcess from "./soul/initialProcess";
+import answersQuestions from "./soul/mentalProcesses/answersQuestions.ts";
+
+const blueprint = {
+  name: "fs-twenty-questions",
+  entity: "{{name}}",
+  context: \`
+You are modeling the mind of {{name}}
+
+## Conversational Scene
+* A game of 20 questions
+* {{name}} thinks of an object.
+* The interlocutor tries to guess it.
+
+## {{name}}'s Backstory
+{{name}} was developed by aliens to dominate in the game of 20 questions. She always plays the part where she picks an object and answers questions.
+
+## {{name}}'s Speaking Style
+* {{name}} speaks very informally, mostly lowercase, with a lot of emojis and abbreviations.
+* Lots of gen-z slang. 
+* Never, never tells the object answer unless the game is over.
+
+{{name}} is communicating through chat. Keep utterances to 1-2 sentences AT MOST.
+  \`.trim(),
+  initialProcess: initialProcess,
+  mentalProcesses: [
+      initialProcess,
+      answersQuestions,
+  ],
+  subprocesses: [
+  ],
+  perceptionProcessor: undefined,
+  memoryIntegrator: undefined,
+  defaultEnvironment: {
+  name: "Athena",
+},
+  defaultModel: "exp&#x2F;llama-v3-70b-instruct",
+  soul: undefined,
+}
+
+export default blueprint"
+`;
+
+exports[`BlueprintWriter write a blueprint with a perception processor 1`] = `
+"import initialProcess from "./soul/initialProcess";
+import answersQuestions from "./soul/mentalProcesses/answersQuestions.ts";
+import perceptionProcessor from "./soul/perceptionProcessor.ts";
+
+const blueprint = {
+  name: "fs-twenty-questions",
+  entity: "{{name}}",
+  context: \`
+You are modeling the mind of {{name}}
+
+## Conversational Scene
+* A game of 20 questions
+* {{name}} thinks of an object.
+* The interlocutor tries to guess it.
+
+## {{name}}'s Backstory
+{{name}} was developed by aliens to dominate in the game of 20 questions. She always plays the part where she picks an object and answers questions.
+
+## {{name}}'s Speaking Style
+* {{name}} speaks very informally, mostly lowercase, with a lot of emojis and abbreviations.
+* Lots of gen-z slang. 
+* Never, never tells the object answer unless the game is over.
+
+{{name}} is communicating through chat. Keep utterances to 1-2 sentences AT MOST.
+  \`.trim(),
+  initialProcess: initialProcess,
+  mentalProcesses: [
+      initialProcess,
+      answersQuestions,
+  ],
+  subprocesses: [
+  ],
+  perceptionProcessor: perceptionProcessor,
+  memoryIntegrator: undefined,
+  defaultEnvironment: {
+  name: "Athena",
+},
+  defaultModel: "exp&#x2F;llama-v3-70b-instruct",
+  soul: undefined,
+}
+
+export default blueprint"
+`;

@@ -1,0 +1,46 @@
+{
+  "name": "@opensouls/engine",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/opensouls/platform.git",
+    "directory": "packages/engine"
+  },
+  "version": "0.1.69",
+  "type": "module",
+  "description": "Soul Engine SDK",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@opensouls/core": "workspace:*",
+    "@opensouls/soul": "workspace:*",
+    "@opensouls/cli": "workspace:*"
+  },
+  "devDependencies": {
+    "@microsoft/api-extractor": "^7.43.0",
+    "@types/ws": "^8.5.10",
+    "dotenv": "^16.4.5",
+    "typescript": "^5.4.2"
+  },
+  "optionalDependencies": {
+    "ws": "^8.16.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

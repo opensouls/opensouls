@@ -1,0 +1,6 @@
+data/
+.env
+dist/
+supabase/
+node_modules/
+/tests
