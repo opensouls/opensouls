@@ -18,10 +18,9 @@
   "author": "OpenSouls",
   "license": "MIT",
   "dependencies": {
-    "@opensouls/core": "^0.1.47",
-    "@opensouls/engine": "^0.1.47",
-    "@opensouls/pipeline": "^0.1.47",
-    "@supabase/supabase-js": "^2.44.3",
+    "@opensouls/core": "workspace:*",
+    "@opensouls/engine": "workspace:*",
+    "@opensouls/pipeline": "workspace:*",
     "gpt-tokenizer": "^2.1.2"
   },
   "devDependencies": {
