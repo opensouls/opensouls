@@ -1,14 +1,10 @@
-# Soul Engine (Snapshot)
+# Soul Engine
 
-**Historical Research Snapshot**: This is an approximate snapshot of code that was running in the Soul Engine roughly 2-3 years ago. We have simplified the codebase by removing authentication, cloud service requirements, and enabling it to run entirely locally. This should be considered a research snapshot, a moment in time, rather than state-of-the-art production code. Some ideas remain interesting to explore and contain relevant cognitive architecture explorations.
+The Soul Engine is built on a core belief: LLMs are incredible reasoning machines—similar to the prefrontal cortex of the brain—but they lack *the rest of the mind*. The engine is designed to model everything else: agency, memory, emotion, drive, and goal setting. Think "NextJS + Vercel for the minds of digital beings." It's run locally and containerized for cloud deployment.
 
-## What Was the Soul Engine?
+At its heart are two abstractions: **WorkingMemory** (an immutable collection of memories) and **cognitiveSteps** (functions that transform WorkingMemory and return typed responses). This functional, append-only approach made AI thought processes debuggable and predictable. Souls are orchestrated by **MentalProcesses**—a state machine where each process defined a behavioral mode (e.g., "introduction", "guessing", "frustrated") that can transition to another, giving souls dynamic, context-aware behavior. The engine supports multiple models (OpenAI, Anthropic, etc), offered resumable conversations with fully persistent state, integrated vector stores with atomic change tracking, and background processes for long-running computations.
 
-The Soul Engine was built on a core belief: LLMs are incredible reasoning machines—similar to the prefrontal cortex of the brain—but they lack *the rest of the mind*. The engine was designed to model everything else: agency, memory, emotion, drive, and goal setting. Think "NextJS + Vercel for the minds of digital beings."
-
-At its heart were two abstractions: **WorkingMemory** (an immutable collection of memories) and **cognitiveSteps** (functions that transform WorkingMemory and return typed responses). This functional, append-only approach made AI thought processes debuggable and predictable. Souls were orchestrated by **MentalProcesses**—a state machine where each process defined a behavioral mode (e.g., "introduction", "guessing", "frustrated") that could transition to another, giving souls dynamic, context-aware behavior. The engine supported multiple models (OpenAI, Anthropic, etc), offered resumable conversations with fully persistent state, integrated vector stores with atomic change tracking, and background processes for long-running computations.
-
-The goal was never to build better chatbots—it was to create "AI Souls": agentic, embodied digital beings with personality, drive, and ego that interact with humans (and each other) in genuinely humane ways. Developers used it to bring IP characters to life, build Discord companions, create AR presences, educational tutors, game NPCs, and more. The philosophy prioritized interaction quality over accuracy, drawing inspiration from neuroscience and psychology to model minds realistically.
+The goal is not to build better chatbots—it is to create "AI Souls": agentic, embodied digital beings with personality, drive, and ego that interact with humans (and each other) in genuinely humane ways. Developers use it to bring IP characters to life, build Discord companions, create AR presences, educational tutors, game NPCs, and more. The philosophy prioritized interaction quality over accuracy, drawing inspiration from neuroscience and psychology to model minds realistically.
 
 ## Quick Start
 
