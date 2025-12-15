@@ -1349,17 +1349,34 @@ export class SoulServer {
     return authPayload
   }
 
-  private async onAuthenticate(_data: onAuthenticatePayload) {
-    logger.debug("onAuthenticate", { _data })
+  private async onAuthenticate(data: onAuthenticatePayload) {
+    const tokenType =
+      typeof data.token === "string" ? data.token.split(":")[0] : typeof data.token
+    logger.debug("onAuthenticate", {
+      documentName: data.documentName,
+      tokenType,
+    })
+
+    // In local-only mode we still need to distinguish internal worker connections so
+    // their stateless messages (e.g. `newSoulEvent`) can be safely broadcast.
+    if (typeof data.token === "string") {
+      if (data.token.startsWith("internal:")) {
+        return this.handleInternalTokenAuth(data)
+      }
+      if (data.token.startsWith("internal-jwt:")) {
+        return this.handleInternalJwtTokenAuth(data)
+      }
+    }
+
     // Local-only mode: bypass all auth and always allow.
-    const localOrgId = process.env.LOCAL_ORG_ID || "00000000-0000-0000-0000-000000000000"
+    const localOrgId =
+      process.env.LOCAL_ORG_ID || "00000000-0000-0000-0000-000000000000"
     return {
       organizationId: localOrgId,
       organizationSlug: "local",
       organizations: [{ id: localOrgId, slug: "local" }],
       userId: "local-user",
-    };
-
+    }
   }
 
   private makeUserFriendlyHocuspocusAuthError(message: string) {
