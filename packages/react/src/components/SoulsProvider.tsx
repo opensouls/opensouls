@@ -4,6 +4,7 @@ import { Soul } from '@opensouls/soul'
 import { useSyncedStore } from '@syncedstore/react';
 import { getSharedSoulEngineSocket } from '../lib/soulConnection';
 import { useIsClient } from '../hooks/useIsClient';
+import type { HocuspocusProviderWebsocketConfiguration } from "@hocuspocus/provider";
 
 type SoulMap = Map<string, Soul>;
 
@@ -19,7 +20,17 @@ type FetchSoul = (config: SoulConfig) => Soul;
 
 const SoulsContext = createContext<FetchSoul>(() => { throw new Error("missing implementation") });
 
-export const SoulsProvider: React.FC<{ children: React.ReactNode, organization: string }> = ({ children, organization }) => {
+export type GetWebSocketUrl = (
+  organizationSlug: string,
+  local: boolean,
+  debug: boolean,
+) => string;
+
+export const SoulsProvider: React.FC<{
+  children: React.ReactNode
+  organization: string
+  getWebSocketUrl?: GetWebSocketUrl
+}> = ({ children, organization, getWebSocketUrl }) => {
   const soulCache = useRef<SoulMap>(new Map());
   const isClient = useIsClient();
 
@@ -31,7 +42,15 @@ export const SoulsProvider: React.FC<{ children: React.ReactNode, organization: 
 
     if (!soulCache.current.get(cacheKey)) {
       console.log("new soul", blueprint, soulId);
-      const ws = getSharedSoulEngineSocket(organization, config.local, config.debug);
+      const local = Boolean(config.local);
+      const debug = Boolean(config.debug);
+      const socketOpts: Partial<HocuspocusProviderWebsocketConfiguration> = {};
+
+      if (getWebSocketUrl) {
+        socketOpts.url = getWebSocketUrl(organization, local, debug);
+      }
+
+      const ws = getSharedSoulEngineSocket(organization, local, debug, socketOpts);
       const newSoul = new Soul({
         ...config,
         organization,
@@ -41,7 +60,7 @@ export const SoulsProvider: React.FC<{ children: React.ReactNode, organization: 
     }
   
     return soulCache.current.get(cacheKey)!;
-  }, [organization])
+  }, [organization, getWebSocketUrl])
 
     
   if (!isClient) {
