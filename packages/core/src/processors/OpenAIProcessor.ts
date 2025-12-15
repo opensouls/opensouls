@@ -3,12 +3,11 @@ import { RequestOptions } from "openai/core";
 import { trace, context } from "@opentelemetry/api";
 import { backOff } from "exponential-backoff";
 import { ZodError, fromZodError } from 'zod-validation-error';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { registerProcessor } from "./registry.ts";
-import { ChatMessageRoleEnum, ContentText, Memory } from "../Memory.ts";
+import { ChatMessageRoleEnum, Memory } from "../Memory.ts";
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { encodeChat, encode } from "gpt-tokenizer/model/gpt-4";
+import { encodeChat } from "gpt-tokenizer/model/gpt-4";
 import { ChatMessage } from "gpt-tokenizer/GptEncoding";
 import {
   extractJSON,
@@ -20,7 +19,7 @@ import {
 import { fixMessageRoles } from "./messageRoleFixer.ts";
 import { indentNicely } from "../utils.ts";
 import { createLLMStreamReader } from '../utils/llmStreamReader.ts';
-import { ContentError, UsageError } from '../utils/llmStreamReader.ts';
+import { UsageError } from '../utils/llmStreamReader.ts';
 
 const tracer = trace.getTracer(
   'open-souls-OpenAIProcessor',
@@ -96,7 +95,7 @@ export class OpenAIProcessor implements Processor {
               span.addEvent("extracted")
               span.setAttribute("extracted", extracted || "none")
               if (!extracted) {
-                console.error("no json found in completion", completion)
+                globalThis.console.error("no json found in completion", completion)
                 throw new Error('no json found in completion')
               }
               try {
@@ -107,10 +106,10 @@ export class OpenAIProcessor implements Processor {
                   ...resp,
                   parsed: Promise.resolve(parsed),
                 }
-              } catch (err: any) {
-                span.recordException(err)
+              } catch (err: unknown) {
+                span.recordException(err as Error)
                 const zodError = fromZodError(err as ZodError)
-                console.log("zod error", zodError.toString())
+                globalThis.console.log("zod error", zodError.toString())
                 memory = memory.concat([
                   {
                     role: ChatMessageRoleEnum.Assistant,
@@ -143,14 +142,14 @@ export class OpenAIProcessor implements Processor {
                 return false
               }
               span.addEvent("retry")
-              console.error("retrying due to error", err)
+              globalThis.console.error("retrying due to error", err)
 
               return true
             },
           })
-      } catch (err: any) {
-        console.error("error in process", err)
-        span.recordException(err)
+      } catch (err: unknown) {
+        globalThis.console.error("error in process", err)
+        span.recordException(err as Error)
         span.end()
         throw err
       }
@@ -158,7 +157,7 @@ export class OpenAIProcessor implements Processor {
 
   }
 
-  private async execute<SchemaType = any>({
+  private async execute<SchemaType = unknown>({
     maxTokens,
     memory,
     model: developerSpecifiedModel,
@@ -170,16 +169,23 @@ export class OpenAIProcessor implements Processor {
     return tracer.startActiveSpan("OpenAIProcessor.execute", async (span) => {
       try {
         const model = developerSpecifiedModel || this.defaultCompletionParams.model || DEFAULT_MODEL;
+        const isGpt5Model = model.startsWith("gpt-5");
+        const tokenLimits: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams> =
+          maxTokens
+            ? (isGpt5Model
+              ? ({ max_completion_tokens: maxTokens } as Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>)
+              : { max_tokens: maxTokens })
+            : {};
         const messages = this.possiblyFixMessageRoles(memory.memories.map(memoryToChatMessage));
         const params = {
           ...this.defaultCompletionParams,
-          ...(maxTokens && { max_tokens: maxTokens }),
+          ...tokenLimits,
           model,
           messages,
           stream_options: {
             include_usage: true,
           },
-          temperature: temperature || 0.8,
+          ...(isGpt5Model ? {} : { temperature: temperature ?? 0.8 }),
         };
 
         span.setAttributes({
@@ -221,8 +227,8 @@ export class OpenAIProcessor implements Processor {
           stream: textStream,
           usage: returnedUsage
         };
-      } catch (err: any) {
-        span.recordException(err);
+      } catch (err: unknown) {
+        span.recordException(err as Error);
         throw err;
       } finally {
         span.end();

@@ -12,6 +12,23 @@ export const PRICING_TIERS = {
       input: 25,
       output: 125,
     },
+    // Note: prices are in cents per 1M tokens.
+    gpt_5_1: {
+      input: 175,
+      output: 1400,
+    },
+    gpt_5_2: {
+      input: 175,
+      output: 1400,
+    },
+    gpt_5_mini: {
+      input: 25,
+      output: 200,
+    },
+    gpt_5_nano: {
+      input: 5,
+      output: 40,
+    },
     gpt_4o_mini: {
       input: 15,
       output: 60,
