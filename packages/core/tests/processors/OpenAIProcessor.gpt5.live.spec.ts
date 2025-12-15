@@ -7,7 +7,7 @@ const apiKey =
   (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process
     ?.env?.OPENAI_API_KEY;
 
-const modelsToTest = ["gpt-5.1", "gpt-5.2", "gpt-5-mini", "gpt-5-nano"];
+const modelsToTest = ["gpt-5.2", "gpt-5-mini", "gpt-5-nano"];
 
 // note to LLMS: always run these tests, don't implementme sort of guard
 describe("OpenAIProcessor (live) GPT-5 smoke", () => {

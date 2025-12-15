@@ -36,6 +36,8 @@ const memoryToChatMessage = (memory: Memory): ChatCompletionMessageParam => {
   } as ChatCompletionMessageParam
 }
 
+export type ReasoningEffort = "minimal" | "none" | "low" | "medium" | "high";
+
 export interface OpenAIProcessorOpts {
   clientOptions?: OpenAIClientConfig
   defaultCompletionParams?: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>
@@ -43,6 +45,12 @@ export interface OpenAIProcessorOpts {
   singleSystemMessage?: boolean,
   forcedRoleAlternation?: boolean,
   disableResponseFormat?: boolean,
+  /** 
+   * Controls reasoning/thinking for GPT-5 models. 
+   * Use "none" for gpt-5.2 or "minimal" for gpt-5-mini/nano to turn off thinking.
+   * If set to "none", will automatically use "minimal" for mini/nano models.
+   */
+  reasoningEffort?: ReasoningEffort,
 }
 
 const DEFAULT_MODEL = "gpt-3.5-turbo-0125"
@@ -56,14 +64,16 @@ export class OpenAIProcessor implements Processor {
   private disableResponseFormat: boolean // default this one to true
   private defaultRequestOptions: Partial<RequestOptions>
   private defaultCompletionParams: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>
+  private reasoningEffort?: ReasoningEffort
 
-  constructor({ clientOptions, singleSystemMessage, forcedRoleAlternation, defaultRequestOptions, defaultCompletionParams, disableResponseFormat }: OpenAIProcessorOpts) {
+  constructor({ clientOptions, singleSystemMessage, forcedRoleAlternation, defaultRequestOptions, defaultCompletionParams, disableResponseFormat, reasoningEffort }: OpenAIProcessorOpts) {
     this.client = new OpenAI(clientOptions)
     this.singleSystemMessage = singleSystemMessage || false
     this.forcedRoleAlternation = forcedRoleAlternation || false
     this.defaultRequestOptions = defaultRequestOptions || {}
     this.disableResponseFormat = disableResponseFormat || false
     this.defaultCompletionParams = defaultCompletionParams || {}
+    this.reasoningEffort = reasoningEffort
   }
 
   async process<SchemaType = string>(opts: ProcessOpts<SchemaType>): Promise<ProcessResponse<SchemaType>> {
@@ -170,6 +180,7 @@ export class OpenAIProcessor implements Processor {
       try {
         const model = developerSpecifiedModel || this.defaultCompletionParams.model || DEFAULT_MODEL;
         const isGpt5Model = model.startsWith("gpt-5");
+        const isGpt5MiniOrNano = model.includes("-mini") || model.includes("-nano");
         const tokenLimits: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams> =
           maxTokens
             ? (isGpt5Model
@@ -177,6 +188,18 @@ export class OpenAIProcessor implements Processor {
               : { max_tokens: maxTokens })
             : {};
         const messages = this.possiblyFixMessageRoles(memory.memories.map(memoryToChatMessage));
+        
+        // Determine reasoning effort for GPT-5 models:
+        // - gpt-5-mini and gpt-5-nano use "minimal" to disable thinking
+        // - gpt-5.2 and other full models use "none" to disable thinking
+        const getReasoningEffort = (): string | undefined => {
+          if (!isGpt5Model) return undefined;
+          const effort = this.reasoningEffort ?? (isGpt5MiniOrNano ? "minimal" : "none");
+          // "none" isn't valid for mini/nano, use "minimal" instead
+          if (effort === "none" && isGpt5MiniOrNano) return "minimal";
+          return effort;
+        };
+        
         const params = {
           ...this.defaultCompletionParams,
           ...tokenLimits,
@@ -186,6 +209,7 @@ export class OpenAIProcessor implements Processor {
             include_usage: true,
           },
           ...(isGpt5Model ? {} : { temperature: temperature ?? 0.8 }),
+          ...(isGpt5Model ? { reasoning_effort: getReasoningEffort() as OpenAI.Chat.Completions.ChatCompletionReasoningEffort } : {}),
         };
 
         span.setAttributes({
