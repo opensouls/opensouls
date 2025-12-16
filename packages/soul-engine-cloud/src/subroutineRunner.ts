@@ -16,7 +16,7 @@ import { Soul, SoulCompartment } from "./code/soulCompartment.ts"
 import { LockedStateError, StateSemaphore } from "./stateSemaphore.ts"
 import { safeName } from "./safeName.ts"
 import { CortexStep } from "socialagi"
-import { MentalProcess, WorkingMemory, InputMemory as CoreMemory, type RagSearchOpts, SoulHooks, defaultRagBucketName, DeveloperInteractionRequest, CognitiveEvent, Perception, PerceptionProcessor, CognitiveEventAbsolute, SoulEventKinds, SoulStoreGetOpts, VectorRecord, MentalProcessReturnOptions, MentalProcessReturnTypes, Json, EphemeralEvent } from "@opensouls/engine"
+import { MentalProcess, WorkingMemory, InputMemory as CoreMemory, type RagSearchOpts, SoulHooks, defaultRagBucketName, DeveloperInteractionRequest, CognitiveEvent, Perception, PerceptionProcessor, CognitiveEventAbsolute, SoulEventKinds, SoulStoreGetOpts, VectorRecord, MentalProcessReturnOptions, MentalProcessReturnTypes, Json, EphemeralEvent, type TTSBroadcasterOptions } from "@opensouls/engine"
 import { addCoreMetadata, coreMemoryToSocialAGIMemory, createTrackingWorkingMemoryConstructor, defaultBlankMemory, socialAGIMemoryToCoreMemory } from "./code/soulEngineProcessor.ts"
 import { VectorStore } from "./storage/vectorStore.ts"
 import { blueprintBucketName, organizationBucketName } from "./lib/bucketNames.ts"
@@ -27,6 +27,8 @@ import { deepCopy } from "./lib/deepCopy.ts"
 import { ToolHandler } from "./toolHandler.ts"
 import { UpdatingScheduledEventContainer } from "./updatingScheduledEventcontainer.ts"
 import { SharedContext, UseSharedContextFn } from "./sharedContexts.ts"
+import { OpenAITTSProcessor } from "./tts/OpenAITTSProcessor.ts"
+import { Buffer } from "buffer"
 
 export interface SubroutineRunnerConstructorProps {
   metricMetadata: EventMetadata
@@ -53,7 +55,7 @@ type MemoryIntegratorParamaters = Parameters<PerceptionProcessor>[0] & {
   soul: Soul
 }
 
-export interface SoulHooksWithContext extends SoulHooks {
+export interface SoulHooksWithContext extends Omit<SoulHooks, "useSharedContext"> {
   useSharedContext: UseSharedContextFn
 }
 
@@ -860,6 +862,12 @@ export class SubroutineRunner {
     updatingScheduledEventContainer: UpdatingScheduledEventContainer,
     semaphore: StateSemaphore,
   ): SoulHooksWithContext {
+    let ttsProcessor: OpenAITTSProcessor | undefined
+    const getTtsProcessor = () => {
+      if (!ttsProcessor) ttsProcessor = new OpenAITTSProcessor()
+      return ttsProcessor
+    }
+
     const handleDispatch = (interactionRequest: DeveloperInteractionRequest) => {
       semaphore()
 
@@ -1045,6 +1053,83 @@ export class SubroutineRunner {
     }
 
     return harden({
+      useTTS: (opts: TTSBroadcasterOptions) => {
+        const processor = getTtsProcessor()
+
+        return harden({
+          speak: async (text: string) => {
+            const streamId = uuidv4()
+
+            const model = opts.model ?? "gpt-4o-mini-tts"
+            const stream = await processor.stream({
+              model: model === "tts-1" || model === "tts-1-hd" || model === "gpt-4o-mini-tts"
+                ? model
+                : "gpt-4o-mini-tts",
+              voice: opts.voice,
+              text,
+              instructions: opts.instructions,
+              speed: opts.speed,
+              responseFormat: "pcm",
+              signal: this.abortController.signal,
+            })
+
+            const iter = stream.chunks[Symbol.asyncIterator]()
+            let seq = 0
+            try {
+              let current = await iter.next()
+              while (!current.done) {
+                const next = await iter.next()
+                const isLast = next.done
+                const chunkBase64 = Buffer.from(current.value).toString("base64")
+
+                actions.emitEphemeral({
+                  type: "audio-chunk",
+                  data: {
+                    streamId,
+                    seq,
+                    isLast,
+                    codec: stream.codec,
+                    ...(stream.sampleRateHz ? { sampleRateHz: stream.sampleRateHz } : {}),
+                    ...(stream.channels ? { channels: stream.channels } : {}),
+                    chunkBase64,
+                  },
+                })
+                seq += 1
+                current = next
+              }
+            } catch (err) {
+              try {
+                actions.emitEphemeral({
+                  type: "audio-error",
+                  data: {
+                    streamId,
+                    message: err instanceof Error ? err.message : String(err),
+                  },
+                })
+              } catch {
+                // ignore secondary errors
+              }
+              throw err
+            }
+
+            const duration = await stream.durationSeconds
+
+            actions.emitEphemeral({
+              type: "audio-complete",
+              data: {
+                streamId,
+                duration,
+                totalChunks: seq,
+                codec: stream.codec,
+                ...(stream.sampleRateHz ? { sampleRateHz: stream.sampleRateHz } : {}),
+                ...(stream.channels ? { channels: stream.channels } : {}),
+              },
+            })
+
+            return { streamId, duration }
+          },
+        })
+      },
       useSharedContext: (name?: string) => {
         name ||= `${this.metricMetadata.organizationSlug}.${this.blueprintName}.${this.soulId}`
         return this.getSharedContext(name).facade

@@ -48,6 +48,48 @@ export interface EphemeralEvent {
   data: Json
 }
 
+export type TTSVoice =
+  | "alloy"
+  | "echo"
+  | "fable"
+  | "onyx"
+  | "nova"
+  | "shimmer"
+  | (string & {})
+
+export type TTSModel = "tts-1" | "tts-1-hd" | "gpt-4o-mini-tts"
+
+export interface TTSBroadcasterOptions {
+  voice: TTSVoice
+  /**
+   * Optional style guidance for the voice.
+   *
+   * Note: Only some models support explicit instructions. When unsupported,
+   * the engine may ignore this.
+   */
+  instructions?: string
+  model?: TTSModel
+  /**
+   * Playback speed multiplier (provider-dependent).
+   */
+  speed?: number
+}
+
+export interface TTSBroadcasterSpeakResult {
+  streamId: string
+  /**
+   * Total duration in seconds of the generated audio (best-effort).
+   */
+  duration: number
+}
+
+export interface TTSBroadcaster {
+  /**
+   * Streams audio chunks over ephemeral events and resolves when streaming completes.
+   */
+  speak: (text: string) => Promise<TTSBroadcasterSpeakResult>
+}
+
 
 export interface DefaultActions {
   /*
@@ -247,6 +289,7 @@ export interface SharedContextFacade<T = Json> {
  */
 export interface SoulHooks {
   useActions: () => DefaultActions
+  useTTS: (opts: TTSBroadcasterOptions) => TTSBroadcaster
   useProcessManager: () => {
     invocationCount: number
     /**
@@ -303,6 +346,12 @@ export const useActions: SoulHooks["useActions"] = () => {
   const hooks = getHooks()
   if (!hooks) throw new Error("useActions called when no hooks are available. Are you executing this code on the SOUL ENGINE?")
   return hooks.useActions()
+}
+
+export const useTTS: SoulHooks["useTTS"] = (opts) => {
+  const hooks = getHooks()
+  if (!hooks) throw new Error("useTTS called when no hooks are available. Are you executing this code on the SOUL ENGINE?")
+  return hooks.useTTS(opts)
 }
 
 export const useSharedContext: SoulHooks["useSharedContext"] = (name?: string) => {
