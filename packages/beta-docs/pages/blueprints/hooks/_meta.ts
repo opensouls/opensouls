@@ -1,5 +1,6 @@
 const meta = {
   useActions: 'useActions',
+  useTTS: 'useTTS',
   usePerceptions: 'usePerceptions',
   useProcessMemory: 'useProcessMemory',
   useProcessManager: 'useProcessManager',

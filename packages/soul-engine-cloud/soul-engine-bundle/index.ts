@@ -17,6 +17,10 @@ export const useActions = () => {
   return getHooks().useActions()
 }
 
+export const useTTS = (opts: Parameters<SoulHooks["useTTS"]>[0]) => {
+  return getHooks().useTTS(opts)
+}
+
 export const useProcessManager = () => {
   return getHooks().useProcessManager()
 }
@@ -53,6 +57,6 @@ export const useTool = (toolName: string) => {
   return getHooks().useTool(toolName)
 }
 
-export const useSharedContext = (contextName: string) => {
+export const useSharedContext = (contextName?: string) => {
   return (getHooks() as any).useSharedContext(contextName)
 }

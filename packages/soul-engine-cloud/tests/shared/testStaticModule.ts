@@ -40,6 +40,7 @@ export const compartmentalizeWithEngine = async (fn: (...args: any[]) => void, e
       import { 
         ChatMessageRoleEnum,
         useActions,
+        useTTS,
         useProcessManager,
         useProcessMemory,
         useSoulStore,
