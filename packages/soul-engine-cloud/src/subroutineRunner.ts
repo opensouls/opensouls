@@ -1056,6 +1056,8 @@ export class SubroutineRunner {
       useTTS: (opts: TTSBroadcasterOptions) => {
         const processor = getTtsProcessor()
 
+        const abortSignal = this.abortController.signal
+
         return harden({
           speak: async (text: string) => {
             const streamId = uuidv4()
@@ -1070,7 +1072,7 @@ export class SubroutineRunner {
               instructions: opts.instructions,
               speed: opts.speed,
               responseFormat: "pcm",
-              signal: this.abortController.signal,
+              signal: abortSignal,
             })
 
             const iter = stream.chunks[Symbol.asyncIterator]()
@@ -1078,6 +1080,9 @@ export class SubroutineRunner {
             try {
               let current = await iter.next()
               while (!current.done) {
+                if (abortSignal) {
+                  break
+                }
                 const next = await iter.next()
                 const isLast = next.done
                 const chunkBase64 = Buffer.from(current.value).toString("base64")
