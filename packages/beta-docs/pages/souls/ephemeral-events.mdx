@@ -1,0 +1,75 @@
+# Ephemeral Events
+
+Ephemeral events are **broadcast-only** messages sent from soul code to all currently-connected listeners. They are delivered over the existing **stateless** message channel and are **not persisted** into the YJS document, conversation history, or database.
+
+This makes them ideal for **TTS creation** and **audio streaming** where you want real-time fanout but do not want to store large audio payloads.
+
+## Emit an ephemeral event from soul code
+
+Use `emitEphemeral` from [`useActions`](/blueprints/hooks/useActions):
+
+```typescript
+import { MentalProcess, useActions } from "@opensouls/engine"
+
+const speakWithTts: MentalProcess = async ({ workingMemory }) => {
+  const { speak, emitEphemeral } = useActions()
+
+  // Persisted interaction request (shows up in history / debugger UI)
+  speak("Hello! (audio is streamed separately)")
+
+  // Broadcast-only side channel (not persisted)
+  emitEphemeral({
+    type: "tts",
+    data: {
+      url: "https://example.com/audio.mp3",
+      duration: 3.5,
+      format: "mp3",
+    },
+  })
+
+  return workingMemory
+}
+
+export default speakWithTts
+```
+
+## Listen for ephemeral events on the client
+
+The client-side `Soul` emits:
+
+- `ephemeral` for all ephemeral events
+- `ephemeral:<type>` for specific subtypes
+
+```typescript
+import { Soul } from "@opensouls/soul"
+
+// ... create/connect soul
+
+soul.on("ephemeral", (evt) => {
+  console.log("ephemeral event", evt.type, evt.data)
+})
+
+soul.on("ephemeral:tts", (evt) => {
+  // e.g. play audio from a URL, or enqueue a chunk stream
+  playAudio(evt.data.url)
+})
+```
+
+## Streaming patterns (TTS/audio)
+
+Ephemeral events are **fire-and-forget** (no replay for late joiners). For streaming, send multiple events with sequence metadata, for example:
+
+```typescript
+emitEphemeral({
+  type: "audio-chunk",
+  data: { streamId, seq, isLast, codec, chunkBase64 },
+})
+```
+
+## Guarantees and tradeoffs
+
+- **Not persisted**: by design, ephemeral events never land in the event log / history.
+- **Broadcast**: delivered to all current listeners of the soul session.
+- **No replay**: clients that connect after emission will not receive prior ephemeral events.
+
+

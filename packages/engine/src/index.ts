@@ -43,6 +43,11 @@ export interface CognitiveEventOffset extends CognitiveEventBase {
 
 export type CognitiveEvent = CognitiveEventAbsolute | CognitiveEventOffset
 
+export interface EphemeralEvent {
+  type: string
+  data: Json
+}
+
 
 export interface DefaultActions {
   /*
@@ -57,6 +62,11 @@ export interface DefaultActions {
    */
   scheduleEvent: (evt: CognitiveEvent) => Promise<string>
   dispatch: (evt: DeveloperInteractionRequest) => void
+  /**
+   * Emits a stateless, non-persisted event to all connected listeners.
+   * Use this for ephemeral side-channels like TTS/audio streaming.
+   */
+  emitEphemeral: (event: EphemeralEvent) => void
 }
 
 

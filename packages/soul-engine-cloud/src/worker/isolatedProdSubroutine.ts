@@ -102,6 +102,12 @@ export const executeProductionUserCode = async ({ kind, expectedInvocationCount,
           }
         })
       },
+      emitEphemeral: (event) => {
+        eventLogConnection.sendStateless(JSON.stringify({
+          event: Events.ephemeralEvent,
+          data: event,
+        }))
+      },
       blueprintName: subroutineSlug,
       soulId: sessionId,
     })

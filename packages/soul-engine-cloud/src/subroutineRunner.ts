@@ -16,7 +16,7 @@ import { Soul, SoulCompartment } from "./code/soulCompartment.ts"
 import { LockedStateError, StateSemaphore } from "./stateSemaphore.ts"
 import { safeName } from "./safeName.ts"
 import { CortexStep } from "socialagi"
-import { MentalProcess, WorkingMemory, InputMemory as CoreMemory, type RagSearchOpts, SoulHooks, defaultRagBucketName, DeveloperInteractionRequest, CognitiveEvent, Perception, PerceptionProcessor, CognitiveEventAbsolute, SoulEventKinds, SoulStoreGetOpts, VectorRecord, MentalProcessReturnOptions, MentalProcessReturnTypes, Json } from "@opensouls/engine"
+import { MentalProcess, WorkingMemory, InputMemory as CoreMemory, type RagSearchOpts, SoulHooks, defaultRagBucketName, DeveloperInteractionRequest, CognitiveEvent, Perception, PerceptionProcessor, CognitiveEventAbsolute, SoulEventKinds, SoulStoreGetOpts, VectorRecord, MentalProcessReturnOptions, MentalProcessReturnTypes, Json, EphemeralEvent } from "@opensouls/engine"
 import { addCoreMetadata, coreMemoryToSocialAGIMemory, createTrackingWorkingMemoryConstructor, defaultBlankMemory, socialAGIMemoryToCoreMemory } from "./code/soulEngineProcessor.ts"
 import { VectorStore } from "./storage/vectorStore.ts"
 import { blueprintBucketName, organizationBucketName } from "./lib/bucketNames.ts"
@@ -37,10 +37,15 @@ export interface SubroutineRunnerConstructorProps {
   appWideVectorStore: VectorDb
   organizationId: string
   cancelScheduledEvent: (eventId: string) => void
+  emitEphemeral?: (event: EphemeralEventEnvelope) => void
   debug?: boolean
 
   blueprintName: string
   soulId: string
+}
+
+export type EphemeralEventEnvelope = EphemeralEvent & {
+  _timestamp: number
 }
 
 type MemoryIntegratorParamaters = Parameters<PerceptionProcessor>[0] & {
@@ -111,6 +116,7 @@ export class SubroutineRunner {
   private scheduledPerceptionHandler?: (evt: CognitiveEventAbsolute) => Promise<string>
 
   private cancelScheduledEvent: (eventId: string) => void
+  private emitEphemeral?: (event: EphemeralEventEnvelope) => void
 
   private scheduledNextProcess?: {
     mentalProcess: string
@@ -182,6 +188,7 @@ export class SubroutineRunner {
     metricMetadata,
     organizationId,
     cancelScheduledEvent,
+    emitEphemeral,
 
     blueprintName,
     soulId
@@ -196,6 +203,7 @@ export class SubroutineRunner {
     this.eventLog = eventLog
     this.createdWorkingMemory = []
     this.cancelScheduledEvent = cancelScheduledEvent
+    this.emitEphemeral = emitEphemeral
     this.step = this.baseDeprecatedCortexStep()
     this.workingMemory = this.blankMemory()
 
@@ -922,6 +930,14 @@ export class SubroutineRunner {
 
     const actions: ReturnType<SoulHooks["useActions"]> = {
       dispatch: handleDispatch,
+      emitEphemeral: (event) => {
+        semaphore()
+        this.emitEphemeral?.({
+          type: event.type,
+          data: deepCopy(event.data),
+          _timestamp: Date.now(),
+        })
+      },
       speak: (message: AsyncIterable<string> | string) => {
         //handle dispatch has the semaphore
         handleDispatch({
@@ -1064,6 +1080,9 @@ export class SubroutineRunner {
         return harden({
           dispatch: (interactionRequest: DeveloperInteractionRequest) => {
             return actions.dispatch(interactionRequest)
+          },
+          emitEphemeral: (event: EphemeralEvent) => {
+            return actions.emitEphemeral(event)
           },
           speak: (val: any) => {
             return actions.speak(val)

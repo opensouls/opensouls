@@ -7,7 +7,7 @@ import { useActions } from "@opensouls/engine"
 
 const exampleProcess: MentalProcess = async ({ workingMemory }) => {
   // get the soul's available actions
-  const { expire, log, speak, dispatch, scheduleEvent } = useActions()
+  const { expire, log, speak, dispatch, scheduleEvent, emitEphemeral } = useActions()
 
   // rest of the mental process
   // ...
@@ -104,3 +104,25 @@ import { Callout } from 'nextra/components'
 <Callout type="info" emoji="ℹ️">
 When a cognitive event is scheduled, it queues a perception called an internal perception to be processed at the target time, along with a target mental process to act on that internal perception. If any current perceptions are being actively processed, they're finished processing first.
 </Callout>
+
+## emitEphemeral
+
+The `emitEphemeral` action broadcasts a **stateless, non-persisted event** to all currently-connected listeners of this Soul.
+
+This is designed for **side-channels** (like TTS creation and audio streaming) where you want real-time fanout but **do not** want to store the payload in YJS / conversation history.
+
+```typescript copy
+emitEphemeral({
+  type: "tts",
+  data: {
+    url: "https://example.com/audio.mp3",
+    duration: 3.5,
+  },
+})
+```
+
+On the client, you can subscribe to:
+
+- `ephemeral` (all ephemeral events)
+- `ephemeral:<type>` (a specific subtype, e.g. `ephemeral:tts`, `ephemeral:audio-chunk`)
+

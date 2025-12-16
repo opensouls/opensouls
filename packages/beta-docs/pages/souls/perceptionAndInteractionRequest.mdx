@@ -2,6 +2,8 @@
 
 It is possible to send `_metadata` as part of your `DeveloperDispatchedPerception` and use that metadata in your `MentalProcess`. It is also possible to dispatch `InteractionRequest` objects with `_metadata` attached from the Soul Engine for use in your client side applications.
 
+If you need a **non-persisted, broadcast-only side channel** (for example TTS/audio streaming), use [Ephemeral Events](/souls/ephemeral-events) via `emitEphemeral` from `useActions`.
+
 ## Example Soul Client Dispatch
 
 ```javascript
