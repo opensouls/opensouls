@@ -16,7 +16,7 @@ import { Soul, SoulCompartment } from "./code/soulCompartment.ts"
 import { LockedStateError, StateSemaphore } from "./stateSemaphore.ts"
 import { safeName } from "./safeName.ts"
 import { CortexStep } from "socialagi"
-import { MentalProcess, WorkingMemory, InputMemory as CoreMemory, type RagSearchOpts, SoulHooks, defaultRagBucketName, DeveloperInteractionRequest, CognitiveEvent, Perception, PerceptionProcessor, CognitiveEventAbsolute, SoulEventKinds, SoulStoreGetOpts, VectorRecord, MentalProcessReturnOptions, MentalProcessReturnTypes, Json, EphemeralEvent } from "@opensouls/engine"
+import { MentalProcess, WorkingMemory, InputMemory as CoreMemory, type RagSearchOpts, SoulHooks, defaultRagBucketName, DeveloperInteractionRequest, CognitiveEvent, Perception, PerceptionProcessor, CognitiveEventAbsolute, SoulEventKinds, SoulStoreGetOpts, VectorRecord, MentalProcessReturnOptions, MentalProcessReturnTypes, Json, EphemeralEvent, type TTSBroadcasterOptions } from "@opensouls/engine"
 import { addCoreMetadata, coreMemoryToSocialAGIMemory, createTrackingWorkingMemoryConstructor, defaultBlankMemory, socialAGIMemoryToCoreMemory } from "./code/soulEngineProcessor.ts"
 import { VectorStore } from "./storage/vectorStore.ts"
 import { blueprintBucketName, organizationBucketName } from "./lib/bucketNames.ts"
@@ -27,6 +27,12 @@ import { deepCopy } from "./lib/deepCopy.ts"
 import { ToolHandler } from "./toolHandler.ts"
 import { UpdatingScheduledEventContainer } from "./updatingScheduledEventcontainer.ts"
 import { SharedContext, UseSharedContextFn } from "./sharedContexts.ts"
+import { OpenAITTSProcessor } from "./tts/OpenAITTSProcessor.ts"
+import { Buffer } from "buffer"
+import { LOADIPHLPAPI } from "dns"
+
+const TTS_CHUNK_TIMEOUT_MS = 30_000
+const TTS_DURATION_TIMEOUT_MS = 10_000
 
 export interface SubroutineRunnerConstructorProps {
   metricMetadata: EventMetadata
@@ -53,7 +59,7 @@ type MemoryIntegratorParamaters = Parameters<PerceptionProcessor>[0] & {
   soul: Soul
 }
 
-export interface SoulHooksWithContext extends SoulHooks {
+export interface SoulHooksWithContext extends Omit<SoulHooks, "useSharedContext"> {
   useSharedContext: UseSharedContextFn
 }
 
@@ -571,32 +577,62 @@ export class SubroutineRunner {
     }
   }
 
-  private awaitWithAbort<T>(promise: Promise<T>): Promise<T> {
+  private awaitWithAbort<T>(
+    promise: Promise<T>,
+    opts?: {
+      timeoutMs?: number
+      timeoutMessage?: string
+    },
+  ): Promise<T> {
     const abortController = this.abortController
-    let abortHandler: () => void;
+    const timeoutMs = opts?.timeoutMs
+    const timeoutMessage = opts?.timeoutMessage
+
+    let abortHandler: (() => void) | undefined
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
 
     const cleanup = () => {
-      abortController.signal.removeEventListener('abort', abortHandler);
-    };
-
-    const abortPromise = new Promise((_, reject) => {
-      abortHandler = () => {
-        cleanup(); // Ensure cleanup when the abort signal is triggered
-        reject(new Error('Request was aborted.'));
-      };
-      abortController.signal.addEventListener('abort', abortHandler);
-    });
-
-    return Promise.race([promise, abortPromise]).then(
-      (result) => {
-        cleanup(); // Cleanup on successful resolution
-        return result;
-      },
-      (error) => {
-        cleanup(); // Ensure cleanup on error
-        throw error;
+      if (abortHandler) {
+        abortController.signal.removeEventListener("abort", abortHandler)
       }
-    ) as Promise<T>;
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+
+    const abortPromise = new Promise<never>((_, reject) => {
+      if (abortController.signal.aborted) {
+        const err = new Error("Aborted")
+        err.name = "AbortError"
+        reject(err)
+        return
+      }
+
+      abortHandler = () => {
+        const err = new Error("Aborted")
+        err.name = "AbortError"
+        reject(err)
+      }
+
+      abortController.signal.addEventListener("abort", abortHandler, { once: true })
+    })
+
+    const timeoutPromise =
+      typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
+        ? new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            const err = new Error(timeoutMessage ?? `Timed out after ${timeoutMs}ms`)
+            err.name = "TimeoutError"
+            reject(err)
+          }, timeoutMs)
+        })
+        : undefined
+
+    const raced = Promise.race(
+      timeoutPromise ? [promise, abortPromise, timeoutPromise] : [promise, abortPromise],
+    )
+
+    return raced.finally(cleanup) as Promise<T>
   }
 
   private parseMentalProcessReturn(
@@ -860,6 +896,12 @@ export class SubroutineRunner {
     updatingScheduledEventContainer: UpdatingScheduledEventContainer,
     semaphore: StateSemaphore,
   ): SoulHooksWithContext {
+    let ttsProcessor: OpenAITTSProcessor | undefined
+    const getTtsProcessor = () => {
+      if (!ttsProcessor) ttsProcessor = new OpenAITTSProcessor()
+      return ttsProcessor
+    }
+
     const handleDispatch = (interactionRequest: DeveloperInteractionRequest) => {
       semaphore()
 
@@ -1045,6 +1087,99 @@ export class SubroutineRunner {
     }
 
     return harden({
+      useTTS: (opts: TTSBroadcasterOptions) => {
+        const processor = getTtsProcessor()
+
+        const abortSignal = this.abortController.signal
+
+        return harden({
+          speak: async (text: string) => {
+            const streamId = uuidv4()
+
+            const model = opts.model ?? "gpt-4o-mini-tts"
+            const stream = await processor.stream({
+              model: model === "tts-1" || model === "tts-1-hd" || model === "gpt-4o-mini-tts"
+                ? model
+                : "gpt-4o-mini-tts",
+              voice: opts.voice,
+              text,
+              instructions: opts.instructions,
+              speed: opts.speed,
+              responseFormat: "pcm",
+              signal: abortSignal,
+            })
+
+            const iter = stream.chunks[Symbol.asyncIterator]()
+            let seq = 0
+          
+            try {
+              let current = await this.awaitWithAbort(iter.next(), {
+                timeoutMs: TTS_CHUNK_TIMEOUT_MS,
+                timeoutMessage: "Timed out waiting for TTS audio chunk",
+              })
+              while (!current.done) {
+                const next = await this.awaitWithAbort(iter.next(), {
+                  timeoutMs: TTS_CHUNK_TIMEOUT_MS,
+                  timeoutMessage: "Timed out waiting for TTS audio chunk",
+                })
+                const isLast = next.done
+                const chunkBase64 = Buffer.from(current.value).toString("base64")
+
+                actions.emitEphemeral({
+                  type: "audio-chunk",
+                  data: {
+                    streamId,
+                    seq,
+                    isLast,
+                    codec: stream.codec,
+                    ...(stream.sampleRateHz ? { sampleRateHz: stream.sampleRateHz } : {}),
+                    ...(stream.channels ? { channels: stream.channels } : {}),
+                    chunkBase64,
+                  },
+                })
+                seq += 1
+                current = next
+              }
+
+
+              const duration = await this.awaitWithAbort(stream.durationSeconds, {
+                timeoutMs: TTS_DURATION_TIMEOUT_MS,
+                timeoutMessage: "Timed out waiting for TTS duration",
+              })
+
+              actions.emitEphemeral({
+                type: "audio-complete",
+                data: {
+                  streamId,
+                  duration,
+                  totalChunks: seq,
+                  codec: stream.codec,
+                  ...(stream.sampleRateHz ? { sampleRateHz: stream.sampleRateHz } : {}),
+                  ...(stream.channels ? { channels: stream.channels } : {}),
+                },
+              })
+
+              return { streamId, duration }
+            } catch (err) {
+              try {
+                actions.emitEphemeral({
+                  type: "audio-error",
+                  data: {
+                    streamId,
+                    message: err instanceof Error ? err.message : String(err),
+                  },
+                })
+                await iter.return?.()
+              } catch {
+                logger.error("error in return", { error: err, alert: false })
+              }
+
+              throw err
+            }
+
+          },
+        })
+      },
       useSharedContext: (name?: string) => {
         name ||= `${this.metricMetadata.organizationSlug}.${this.blueprintName}.${this.soulId}`
         return this.getSharedContext(name).facade

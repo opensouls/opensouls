@@ -1,0 +1,97 @@
+# useTTS
+
+`useTTS` is a Soul hook for **real-time TTS streaming** using **ephemeral events**.
+
+- Audio is delivered over the stateless channel via `emitEphemeral` (not persisted in history / YJS / DB).
+- `speak()` resolves when streaming finishes, returning `{ streamId, duration }`.
+
+## Usage
+
+```typescript
+import { MentalProcess, useActions, useTTS } from "@opensouls/engine"
+
+const speakWithTts: MentalProcess = async ({ workingMemory }) => {
+  const { speak } = useActions()
+  const tts = useTTS({
+    voice: "nova",
+    instructions: "speak like a morbid detective",
+    // model: "gpt-4o-mini-tts", // optional
+    // speed: 1.0,               // optional
+  })
+
+  // Persisted interaction request (shows up in history / debugger UI)
+  speak("Hello! (audio is streamed separately)")
+
+  // Broadcast-only audio stream
+  const { streamId, duration } = await tts.speak("Hello there.")
+
+  return workingMemory
+}
+
+export default speakWithTts
+```
+
+## Emitted ephemeral events
+
+### `audio-chunk`
+
+```typescript
+{
+  type: "audio-chunk",
+  data: {
+    streamId: string,
+    seq: number,
+    isLast: boolean,
+    codec: "pcm_s16le_24000_mono",
+    sampleRateHz: 24000,
+    channels: 1,
+    chunkBase64: string
+  }
+}
+```
+
+### `audio-complete`
+
+```typescript
+{
+  type: "audio-complete",
+  data: {
+    streamId: string,
+    duration: number,
+    totalChunks: number,
+    codec: "pcm_s16le_24000_mono",
+    sampleRateHz: 24000,
+    channels: 1
+  }
+}
+```
+
+### `audio-error`
+
+```typescript
+{
+  type: "audio-error",
+  data: {
+    streamId: string,
+    message: string
+  }
+}
+```
+
+## Listening on the client
+
+```typescript
+import { Soul } from "@opensouls/soul"
+
+// ... create/connect soul
+
+soul.on("ephemeral:audio-chunk", (evt) => {
+  // decode evt.data.chunkBase64, enqueue PCM bytes
+})
+
+soul.on("ephemeral:audio-complete", (evt) => {
+  console.log("tts done", evt.data.streamId, evt.data.duration)
+})
+```
+
+

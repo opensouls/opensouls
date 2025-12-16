@@ -16,10 +16,10 @@ export const sharedContextProvider = (contextName: string, orgSlug: string, opts
   })
 }
 
-export type UseSharedContextFn = (contextName: string) => SharedContext["facade"]
+export type UseSharedContextFn = (_contextName?: string) => SharedContext["facade"]
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const useSharedContext: UseSharedContextFn = (contextName?: string) => {
+export const useSharedContext: UseSharedContextFn = (_contextName?: string) => {
   throw new Error("this needs to be run in the engine")
 }
 
