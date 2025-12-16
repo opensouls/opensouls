@@ -24,6 +24,8 @@ export enum Actions {
 export enum Events {
   // this one is sent by the server
   newSoulEvent = "newSoulEvent",
+  // stateless, non-persisted broadcast-only events (e.g. audio/TTS chunks)
+  ephemeralEvent = "ephemeralEvent",
   // this one is used by developers
   dispatchExternalPerception = "dispatchExternalPerception",
   compileError = "compileError",
@@ -113,12 +115,20 @@ export type ActionEvent = {
 export type SoulEvents = {
   [K in Actions]: (evt: ActionEvent) => void
 } & {
-  [key: string]: (evt: ActionEvent) => void
+  // custom action names and custom ephemeral event names
+  [key: string]: (evt: any) => void
 } & {
   // @deprecated newPerception is deprecated, use newInteractionRequest instead.
   newPerception: (evt: InteractionRequest) => void,
   newInteractionRequest: (evt: InteractionRequest) => void,
   newSoulEvent: (evt: SoulEvent) => void,
+  ephemeral: (evt: EphemeralEvent) => void,
+}
+
+export type EphemeralEvent = {
+  type: string
+  data: Json
+  _timestamp: number
 }
 
 // Check if the code is running in a browser environment
@@ -549,6 +559,15 @@ export class Soul extends EventEmitter<SoulEvents> {
 
   private async handleStatelessMessage(payload: string) {
     const { eventType, event: statelessEvent } = this.eventFromPayload(payload)
+
+    if (eventType === Events.ephemeralEvent) {
+      const ephemeralEvent = statelessEvent as EphemeralEvent
+      this.emit("ephemeral", ephemeralEvent)
+      // allow fine-grained listeners per ephemeral subtype
+      this.emit(`ephemeral:${ephemeralEvent.type}`, ephemeralEvent)
+      return
+    }
+
     if (eventType !== Events.newSoulEvent) {
       return // for now we only care about soul events
     }

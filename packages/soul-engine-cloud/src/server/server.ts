@@ -54,6 +54,8 @@ export interface CodeFile {
 export enum Events {
   // this one is sent by the server
   newSoulEvent = "newSoulEvent",
+  // stateless, non-persisted broadcast-only events (e.g. audio/TTS chunks)
+  ephemeralEvent = "ephemeralEvent",
   // this one is used by developers
   dispatchExternalPerception = "dispatchExternalPerception",
   compileError = "compileError",

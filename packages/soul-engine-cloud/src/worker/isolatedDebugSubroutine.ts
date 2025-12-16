@@ -87,6 +87,12 @@ export const executeDebugUserCode = async ({ kind, expectedInvocationCount, abor
           }
         })
       },
+      emitEphemeral: (event) => {
+        chatDocConnection.sendStateless(JSON.stringify({
+          event: Events.ephemeralEvent,
+          data: event,
+        }))
+      },
       blueprintName: subroutineSlug,
       soulId: sessionId,
     })
