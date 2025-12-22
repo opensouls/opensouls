@@ -2,7 +2,7 @@
 
 The soul-engine provides `WorkingMemory` (what is passed into and out of a `MentalProcess`). `WorkingMemory` objects are immutable and all interactions on a `WorkingMemory` return a *new* immutable `WorkingMemory`.
 
-`WorkingMemory` is maniuplated through list-like functions (`slice`, `map`, etc) and `CognitiveStep`s which use a model to modify memory and return values.
+`WorkingMemory` is manipulated through list-like functions (`slice`, `map`, etc) and `CognitiveStep`s which use a model to modify memory and return values.
 
 `WorkingMemory` is a wrapper around a list of `Memory` objects that provides methods to manipulate that list immutably.
 
@@ -43,7 +43,7 @@ const memory = new WorkingMemory({
   ]
 })
 
-// easily add a memory (returning a new WorkingMemory with the appeneded memory)
+// easily add a memory (returning a new WorkingMemory with the appended memory)
 const withHi = memory.withMemory({
   role: ChatMessageRoleEnum.User,
   content: "hi!"
@@ -63,7 +63,7 @@ There are many list manipulation functions available to you, read more... [todo:
 A `CognitiveStep` transforms a `WorkingMemory` using an LLM and returns a new `WorkingMemory` and a value. We have a [Resources Library] of `CognitiveStep`s.
 
 ```typescript filename="cognitiveSteps.ts"
-import { createCogntiveStep } from "@opensouls/engine"
+import { createCognitiveStep } from "@opensouls/engine"
 
 export const brainstorm = createCognitiveStep((description: string) => {
   const params = z.object({
@@ -110,7 +110,7 @@ const memory = new WorkingMemory({
 
 const [newMemory, brainstormIdeas] = await brainstorm(memory, "Think of 3 butterflies")
 // alternatively
-const [newMemory, stream, branstormIdeasPromise] = await brainstrom(memory, "Think of 3 butterflies", { stream: true })
+const [newMemory, stream, brainstormIdeasPromise] = await brainstorm(memory, "Think of 3 butterflies", { stream: true })
 
 console.log(brainstormIdeas) // string[] with 3 different butterfly ideas
 console.log(newMemory.memories) // the new WorkingMemory with the butterfly ideations appended to the memory
