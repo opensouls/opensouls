@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "root",
@@ -59,6 +60,7 @@
       "dependencies": {
         "@hocuspocus/provider": "=2.13.5",
         "@opensouls/engine": "workspace:*",
+        "@syncedstore/core": "catalog:",
         "chokidar": "^3.6.0",
         "cli-table3": "^0.6.5",
         "commander": "^12.0.0",
@@ -465,6 +467,9 @@
         "typescript": "^5.3.3",
       },
     },
+  },
+  "catalog": {
+    "@syncedstore/core": "0.6.0",
   },
   "packages": {
     "@agoric/babel-generator": ["@agoric/babel-generator@7.17.6", "", { "dependencies": { "@babel/types": "^7.17.0", "jsesc": "^2.5.1", "source-map": "^0.5.0" } }, "sha512-D2wnk5fGajxMN5SCRSaA/triQGEaEX2Du0EzrRqobuD4wRXjvtF1e7jC1PPOk/RC2bZ8/0fzp0CHOiB7YLwb5w=="],

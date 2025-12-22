@@ -28,7 +28,6 @@ interface FilePosterEvents {
   stateless: () => void
 }
 
-// eslint-disable-next-line unicorn/prefer-event-target
 export class FilePoster extends EventEmitter<FilePosterEvents> {
   private _connection?: { doc: ReturnType<typeof syncedFilesDoc>, provider: HocuspocusProvider, socket: HocuspocusProviderWebsocket }
   private apiKey: string

@@ -26,5 +26,8 @@
   "type": "module",
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "catalog": {
+    "@syncedstore/core": "0.6.0"
   }
 }
