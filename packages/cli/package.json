@@ -40,6 +40,7 @@
     "commander": "^12.0.0",
     "conf": "^12.0.0",
     "cross-fetch": "^4.0.0",
+    "eventemitter3": "^5.0.1",
     "execa": "^8.0.1",
     "fs-extra": "^11.2.0",
     "glob": "^10.4.1",
