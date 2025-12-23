@@ -1,10 +1,10 @@
 # Configuring your soul
 
-When designing your soul, you will want to include baseline memories, instructions, personality, and more to ensure that your soul has enough context to fill it's role properly. Defining and customizing your soul.ts file is the first step toward this. 
+When designing your soul, you will want to include baseline memories, instructions, personality, and more to ensure that your soul has enough context to fill its role properly. Defining and customizing your soul.ts file is the first step toward this. 
 
 ## Defining a simple soul.ts
 
-Every soul should define a `soul.ts` file to ensure that the soul has been named, and that _at least_ the core staticMemories has been loaded, as this will be loaded by the default memory integrator. When initializing a new soul, the soul.ts file will be setup up with a standard `core` [memory region](../core/regions.mdx) by default, which the Memory Integrator will use to setup the soul's working memory.
+Every soul should define a `soul.ts` file to ensure that the soul has been named, and that _at least_ the core staticMemories has been loaded, as this will be loaded by the default memory integrator. When initializing a new soul, the soul.ts file will be set up with a standard `core` [memory region](../core/regions.mdx) by default, which the Memory Integrator will use to set up the soul's working memory.
 
 ```typescript filename=soul/soul.ts"
 import { Soul, load } from "@opensouls/engine";
@@ -40,7 +40,7 @@ export default soul;
 ```
 
 ### Templating Environment Variables 
-Internally, we use Mustache to render template strings, so to use these environment variables in your soul's code you can use our `$$()` convinience function to access them, and `{{}}` handlebars to reference your environment variables.
+Internally, we use Mustache to render template strings, so to use these environment variables in your soul's code you can use our `$$()` convenience function to access them, and `{{}}` handlebars to reference your environment variables.
 
 ```typescript {6} filename=soul/mentalProcess/demo.ts"
 import { useActions } from "@opensouls/engine"
