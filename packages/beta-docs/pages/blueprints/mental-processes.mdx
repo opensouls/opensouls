@@ -65,4 +65,4 @@ const aDifferentProcess: EngineProcess = async ({ workingMemory }) => {
 }
 ```
 
-Notice how introduction will switch the MentalProcess to `aDifferentProcess` right after speaking. The next incoming perception will go to the `aDifferentProcess` mental process. However, the `aDifferentProcess` uses `{ executeNow: true }` so when it executes, it will not only set the mental process back to `introduction` but will also execute initialProcess immediately (using the same invoking perception).
+Notice how introduction will switch the MentalProcess to `aDifferentProcess` right after speaking. The next incoming perception will go to the `aDifferentProcess` mental process. However, the `aDifferentProcess` uses `{ executeNow: true }` so when it executes, it will not only set the mental process back to `introduction` but will also execute introduction immediately (using the same invoking perception).
