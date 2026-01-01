@@ -7,8 +7,15 @@ import { OpenRouterProcessor } from '../../src/processors/OpenRouterProcessor.ts
 import { indentNicely } from '../../src/utils.ts';
 import { externalDialog } from '../shared/cognitiveSteps.ts';
 
+const hasOpenRouterKey = !!process.env.OPENROUTER_API_KEY;
+
 describe('OpenRouterProcessor', () => {
   it('processes input from WorkingMemory and return a valid response', async () => {
+    if (!hasOpenRouterKey) {
+      console.log("Skipping test: OPENROUTER_API_KEY not set");
+      return;
+    }
+    
     const processor = new OpenRouterProcessor({});
     const workingMemory = new WorkingMemory({
       soulName: 'testEntity',
@@ -31,13 +38,20 @@ describe('OpenRouterProcessor', () => {
     expect(typeof completion).toBe('string');
 
     const usage = await response.usage;
+    console.log("Usage:", usage);
     expect(usage).toHaveProperty('input');
+    expect(typeof usage.input).toBe('number');
     expect(usage.input).toBeGreaterThan(0);
     expect(usage.output).toBeGreaterThan(0);
     expect(streamed).toBe(completion);
   });
 
   it('works with cognitive steps', async function() {
+    if (!hasOpenRouterKey) {
+      console.log("Skipping test: OPENROUTER_API_KEY not set");
+      return;
+    }
+
     const workingMemory = new WorkingMemory({
       soulName: 'testEntity',
       memories: [
@@ -61,6 +75,11 @@ describe('OpenRouterProcessor', () => {
   });
 
   it("returns typed json if a schema is passed in", async () => {
+    if (!hasOpenRouterKey) {
+      console.log("Skipping test: OPENROUTER_API_KEY not set");
+      return;
+    }
+
     const params = z.object({
       text: z.string()
     })
