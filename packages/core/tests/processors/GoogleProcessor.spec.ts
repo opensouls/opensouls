@@ -15,7 +15,7 @@ import { join, dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const GOOGLE_MODEL = "gemini-3-5-flash"
+const GOOGLE_MODEL = "gemini-3-flash-preview"
 
 describe('GoogleProcessor', () => {
   it('processes input from WorkingMemory and return a valid response', async () => {

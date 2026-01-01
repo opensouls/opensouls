@@ -32,7 +32,7 @@ const tracer = trace.getTracer(
 // https://ai.google.dev/gemini-api/docs/vision?lang=node#technical-details-image
 const ALLOWED_VISION_TYPES = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"]
 const ALLOWED_AUDIO_TYPES = ["audio/wav", "audio/mp3", "audio/aiff", "audio/aac", "audio/ogg", "audio/flac"]
-const DEFAULT_MODEL = "gemini-1.5-flash";
+const DEFAULT_MODEL = "gemini-3-flash-preview";
 
 interface GoogleMessage {
   parts: Part[],
