@@ -130,7 +130,7 @@ export class OpenRouterProcessor implements Processor {
 
         span.setAttribute("model", model!);
 
-        const wrapped = wrapVercelSDKResponse(result, schema);
+        const wrapped = wrapVercelSDKResponse(result, model!, schema);
 
         return wrapped;
       } catch (err: unknown) {
