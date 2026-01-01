@@ -15,7 +15,7 @@ import { join, dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const GOOGLE_MODEL = "gemini-1.5-flash"
+const GOOGLE_MODEL = "gemini-3-5-flash"
 
 describe('GoogleProcessor', () => {
   it('processes input from WorkingMemory and return a valid response', async () => {
@@ -232,10 +232,10 @@ describe('GoogleProcessor', () => {
       memory: memory,
       model: GOOGLE_MODEL
     });
-    expect(await response.rawCompletion).to.have.length.greaterThan(0);
-    expect((await response.usage).input).to.be.greaterThan(0);
-    expect((await response.usage).output).to.be.greaterThan(0);
-    expect((await response.usage).model).to.equal(GOOGLE_MODEL);
+    expect((await response.rawCompletion).length).toBeGreaterThan(0);
+    expect((await response.usage).input).toBeGreaterThan(0);
+    expect((await response.usage).output).toBeGreaterThan(0);
+    expect((await response.usage).model).toBe(GOOGLE_MODEL);
     expect((await response.parsed).toLowerCase()).toContain("apple")
   })
 });
