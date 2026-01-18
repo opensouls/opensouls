@@ -38,18 +38,24 @@ export function convertContentToCoreMessageContent(content: ChatMessageContent):
       return { type: "text", text: c.text };
     }
     if (ContentTypeGuards.isImage(c) && "image_url" in c) {
+      const { data, mediaType } = parseDataUrl(c.image_url.url);
+      if (data && mediaType) {
+        return { type: "image", image: data, mediaType };
+      }
       return { type: "image", image: c.image_url.url };
     }
     if (ContentTypeGuards.isImage(c) && "source" in c) {
       return {
         type: "image",
-        image: `data:${c.source.media_type};base64,${c.source.data}`
+        image: c.source.data,
+        mediaType: c.source.media_type
       };
     }
     if (ContentTypeGuards.isImage(c) && "inlineData" in c) {
       return {
         type: "image",
-        image: `data:${c.inlineData.mimeType};base64,${c.inlineData.data}`
+        image: c.inlineData.data,
+        mediaType: c.inlineData.mimeType
       };
     }
     if (ContentTypeGuards.isAudio(c)) {
@@ -58,3 +64,14 @@ export function convertContentToCoreMessageContent(content: ChatMessageContent):
     return { type: "text", text: "" };
   }) as CoreMessageContent;
 }
+
+const parseDataUrl = (url: string): { data?: string; mediaType?: string } => {
+  if (!url.startsWith("data:")) {
+    return {};
+  }
+  const match = url.match(/^data:([^;]+);base64,(.*)$/);
+  if (!match) {
+    return {};
+  }
+  return { mediaType: match[1], data: match[2] };
+};
