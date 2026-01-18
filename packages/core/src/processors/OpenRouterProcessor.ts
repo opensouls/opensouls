@@ -2,15 +2,13 @@ import { trace, context } from "@opentelemetry/api";
 import { openrouter } from "@openrouter/ai-sdk-provider";
 import { streamText } from "ai";
 import { registerProcessor } from "./registry.ts";
-import { ChatMessageRoleEnum, Memory } from "../Memory.ts";
-import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import {
+  buildAbortSignal,
   Processor,
   prepareMemoryForJSON,
   ProcessOpts,
   ProcessResponse
 } from "./Processor.ts";
-import { fixMessageRoles } from "./messageRoleFixer.ts";
 import { convertMemoriesToCoreMessages } from "./shared/messageConverter.ts";
 import { wrapVercelSDKResponse } from "./shared/responseWrapper.ts";
 
@@ -106,6 +104,7 @@ export class OpenRouterProcessor implements Processor {
         const temp = temperature ?? this.defaultCompletionParams.temperature;
 
         const messages = convertMemoriesToCoreMessages(memory);
+        const abortSignal = buildAbortSignal(signal, timeout);
 
         span.setAttributes({
           model,
@@ -116,9 +115,9 @@ export class OpenRouterProcessor implements Processor {
         const result = await streamText({
           model: openrouter(model!),
           messages,
-          maxOutputTokens: tokens,
-          temperature: temp,
-          abortSignal: signal,
+          ...(tokens ? { maxOutputTokens: tokens } : {}),
+          ...(typeof temp === "number" ? { temperature: temp } : {}),
+          ...(abortSignal ? { abortSignal } : {}),
           providerOptions: {
             openrouter: {
               apiKey: this.clientOptions.apiKey,
@@ -140,10 +139,6 @@ export class OpenRouterProcessor implements Processor {
         span.end();
       }
     });
-  }
-
-  private possiblyFixMessageRoles(messages: (Memory | ChatCompletionMessageParam)[]): ChatCompletionMessageParam[] {
-    return fixMessageRoles({ singleSystemMessage: false, forcedRoleAlternation: false }, messages);
   }
 }
 

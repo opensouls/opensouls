@@ -137,9 +137,9 @@ describe("memory transformations", () => {
     })
 
     let newMemory
-    [newMemory] = await externalDialog(workingMemory, "Please say hi back to me.", { model: "gpt-4-turbo-preview" });
+    [newMemory] = await externalDialog(workingMemory, "Please say hi back to me.", { model: "gpt-4o" });
     await newMemory.finished
-    expect(newMemory.usage.model).toBe("gpt-4-turbo-preview")
+    expect(newMemory.usage.model).toBe("gpt-4o")
     expect(newMemory.usage.input).toBeGreaterThan(0)
     expect(newMemory.usage.output).toBeGreaterThan(0)
   })
@@ -150,7 +150,7 @@ describe("memory transformations", () => {
         name: "openai",
         options: {
           defaultCompletionParams: {
-            model: "gpt-4-turbo-preview"
+            model: "gpt-4o"
           },
         }
       },
@@ -169,13 +169,13 @@ describe("memory transformations", () => {
 
     let newMemory;
     [newMemory] = await externalDialog(workingMemory, "Please say hi back to me.");
-    expect(newMemory.usage.model).toBe("gpt-4-turbo-preview")
+    expect(newMemory.usage.model).toBe("gpt-4o")
     expect(newMemory.usage.input).toBeGreaterThan(0)
     expect(newMemory.usage.output).toBeGreaterThan(0);
   
     // the processor should be carried over into newMemory too...
     [newMemory] = await externalDialog(newMemory, "Please say hi one more time!");
-    expect(newMemory.usage.model).toBe("gpt-4-turbo-preview")
+    expect(newMemory.usage.model).toBe("gpt-4o")
     expect(newMemory.usage.input).toBeGreaterThan(0)
     expect(newMemory.usage.output).toBeGreaterThan(0);
   })
@@ -188,7 +188,7 @@ describe("memory transformations", () => {
         name: "openai",
         options: {
           defaultCompletionParams: {
-            model: "gpt-4-vision-preview"
+            model: "gpt-4o"
           },
         }
       },

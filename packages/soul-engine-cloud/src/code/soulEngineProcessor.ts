@@ -1,10 +1,8 @@
 import 'dotenv/config'
-import { AnthropicProcessor, InputMemory, Memory, OpenAIProcessor, OpenAIProcessorOpts, ProcessOpts, ProcessResponse, Processor, WorkingMemory, WorkingMemoryInitOptions, getProcessor, registerProcessor } from "@opensouls/engine";
-import { OpenAICompatibleProcessor } from "@opensouls/engine";
+import { AnthropicProcessor, AnthropicProcessorOpts, InputMemory, Memory, OpenAIProcessor, OpenAIProcessorOpts, ProcessOpts, ProcessResponse, Processor, WorkingMemory, WorkingMemoryInitOptions, getProcessor, registerProcessor } from "@opensouls/engine";
 import { Memory as SocialAGIMemory } from "socialagi";
 import { MinimalMetadata } from "../metrics.ts";
 import fetch from "node-fetch"
-import { AnthropicCustomRestClient } from "../server/anthropicCustomRestClient.ts";
 import { usage } from "../usage/index.ts";
 import { MODEL_MAP } from "./modelMap.ts";
 
@@ -85,7 +83,7 @@ export const coreMemoryToSocialAGIMemory = (newMemory: InputMemory | Memory): So
 }
 
 registerProcessor("fireworks", (opts: Partial<OpenAIProcessorOpts> = {}) => {
-  return new OpenAICompatibleProcessor({
+  return new OpenAIProcessor({
     clientOptions: {
       baseURL: "https://api.fireworks.ai/inference/v1",
       apiKey: process.env.FIREWORKS_API_KEY,
@@ -93,28 +91,25 @@ registerProcessor("fireworks", (opts: Partial<OpenAIProcessorOpts> = {}) => {
     },
     singleSystemMessage: true,
     forcedRoleAlternation: true,
-    disableStreamUsageParam: true,
     defaultCompletionParams: {
       model: "fireworks/nous-hermes-2-mixtral-8x7b-dpo-fp8",
-      max_tokens: 16_000,
+      maxOutputTokens: 16_000,
     },
     ...opts,
   })
 })
 
 registerProcessor("mistral", (opts: Partial<OpenAIProcessorOpts> = {}) => {
-  return new OpenAICompatibleProcessor({
+  return new OpenAIProcessor({
     clientOptions: {
       baseURL: "https://api.mistral.ai/v1/",
       apiKey: process.env.MISTRAL_API_KEY,
       fetch,
     },
     singleSystemMessage: true,
-    disableResponseFormat: true,
-    disableStreamUsageParam: true,
     defaultCompletionParams: {
       model: "mistral-medium-latest",
-      max_tokens: 1600,
+      maxOutputTokens: 1600,
     },
     ...opts,
   })
@@ -130,14 +125,13 @@ registerProcessor("openai-fixed-fetch", (opts: Partial<OpenAIProcessorOpts> = {}
   })
 })
 
-registerProcessor("anthropic-fixed-fetch", (opts: Partial<OpenAIProcessorOpts> = {}) => {
+registerProcessor("anthropic-fixed-fetch", (opts: Partial<AnthropicProcessorOpts> = {}) => {
   return new AnthropicProcessor({
     ...opts,
     clientOptions: {
       ...opts.clientOptions,
       fetch,
     },
-    customClient: AnthropicCustomRestClient,
   })
 })
 

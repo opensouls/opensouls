@@ -7,7 +7,7 @@ This document provides an overview of the LLM processor system in the @opensouls
 The processor system is designed to handle interactions with various Language Model providers (e.g., OpenAI, Anthropic) in a consistent manner. It includes:
 
 1. Individual processor implementations (e.g., `OpenAIProcessor`, `AnthropicProcessor`)
-2. A unified stream reader (`llmStreamReader`)
+2. Shared helpers for Vercel AI SDK message conversion and response wrapping
 3. A processor registry for easy access and management
 
 ## Key Components
@@ -27,9 +27,9 @@ In addition, all processors include a private `execute` function as well which t
 private async execute<SchemaType = any>({}: ProcessOpts<SchemaType>): Promise<Omit<ProcessResponse<SchemaType>, "parsed">> {}
 ```
 
-### 2. LLM Stream Reader
+### 2. Shared Vercel AI SDK Helpers
 
-The `createLLMStreamReader` function in `llmStreamReader.ts` handles the streaming responses from different LLM providers, unifying their output format.
+Processors rely on shared helpers in `processors/shared/` to convert `WorkingMemory` messages into Vercel AI SDK `CoreMessage[]` and to wrap SDK results into `ProcessResponse`.
 
 ### 3. Processor Registry
 
@@ -41,12 +41,10 @@ To add a new LLM provider:
 
 1. Create a new file (e.g., `NewProviderProcessor.ts`) in the `processors` directory.
 2. Implement the `Processor` interface.
-3. Use the `createLLMStreamReader` function to handle streaming responses.
+3. Use the Vercel AI SDK (`streamText`) to handle streaming responses.
 4. Register the new processor in the registry:
 ```typescript
 registerProcessor(NewProviderProcessor.label, (opts: Partial<NewProviderProcessorOpts> = {}) => new NewProviderProcessor(opts))
 ```
-5. Add type definitions for the new provider's chunk format in `llmStreamReader.ts`.
-6. Update the `processChunk` function in `llmStreamReader.ts` to handle the new provider's chunk format.
-7. Create a test file (e.g., `NewProviderProcessor.spec.ts`) with comprehensive tests.
+5. Create a test file (e.g., `NewProviderProcessor.spec.ts`) with comprehensive tests.
 

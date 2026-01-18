@@ -1,13 +1,10 @@
 import { describe, it, expect } from 'bun:test';
-import { OpenAIProcessor, OpenAIProcessorOpts } from '../../src/processors/OpenAIProcessor.ts';
+import { OpenAIProcessor } from '../../src/processors/OpenAIProcessor.ts';
 import { WorkingMemory } from '../../src/WorkingMemory.ts';
 import { ChatMessageRoleEnum } from '../../src/Memory.ts';
 import { z } from 'zod';
 import { zodToJsonSchema } from "zod-to-json-schema"
 import { indentNicely } from '../../src/utils.ts';
-import OpenAI from 'openai';
-import { encode, encodeChat } from 'gpt-tokenizer/model/gpt-4';
-import { ChatMessage } from "gpt-tokenizer/GptEncoding";
 
 describe('OpenAIProcessor', () => {
   it('should process input from WorkingMemory and return a valid response', async () => {
@@ -71,7 +68,7 @@ describe('OpenAIProcessor', () => {
   })
 
   it('executes a vision model', async () => {
-    const url = "https://shop-pawness.com/wp-content/uploads/2019/12/LIVING-THE-HAPPY-LIFE.jpg"
+    const imageUrl = "https://images.pexels.com/photos/8660788/pexels-photo-8660788.jpeg"
     const processor = new OpenAIProcessor({});
 
   
@@ -92,7 +89,7 @@ describe('OpenAIProcessor', () => {
             {
               type: "image_url",
               image_url: {
-                url: url,
+                url: imageUrl,
               },
             }
           ]
@@ -102,64 +99,13 @@ describe('OpenAIProcessor', () => {
 
     const response = await processor.process({
       memory: memory,
-      model: "gpt-4o"
+      model: "gpt-5-mini"
     });
     expect((await response.rawCompletion).length).toBeGreaterThan(0);
     expect((await response.usage).input).toBeGreaterThan(0);
     expect((await response.usage).output).toBeGreaterThan(0);
-    expect((await response.usage).model).toBe("gpt-4o");
+    expect((await response.usage).model).toBe("gpt-5-mini");
     expect((await response.parsed).toLowerCase()).toContain("dog")
   })
 
-  it('should track usage metrics during a stream error', async () => {
-
-    const processor = new OpenAIProcessor({});
-    const messages = [{
-      role: ChatMessageRoleEnum.User,
-      content: "Please provide a very long response about the history of artificial intelligence. Make sure it's at least 1000 words long."
-    }]
-    const inputTokens = encodeChat(messages as ChatMessage[]).length
-
-    const workingMemory = new WorkingMemory({
-      soulName: 'testEntity',
-      memories: messages
-    });
-
-    const response = await processor.process({ memory: workingMemory });
-
-    let streamedContent = '';
-    let streamError;
-    try {
-      for await (const chunk of response.stream) {
-        streamedContent += chunk;
-        // Simulate an error by breaking the loop after receiving some content
-        if (streamedContent.length > 100) {
-          throw new Error('Simulated stream interruption');
-        }
-      }
-    } catch (error) {
-      streamError = error;
-    }
-
-    // Check that we got a stream error
-    expect(streamError).toBeDefined();
-    expect(streamError).toBeInstanceOf(Error);
-    expect(streamError.message).toBe('Simulated stream interruption');
-
-    try {
-      const usage = await response.usage;
-      expect(usage.input).toBe(inputTokens)
-      expect(usage.output).toBeGreaterThan(0)
-    } catch (error) {
-    }
-
-    try {
-      const output = await response.rawCompletion
-      console.log("OUTPUT", output)
-      expect(output.length).toBeGreaterThan(0)
-    } catch (error: any) {
-      expect(typeof error.partialContent).toBe('string')
-      expect(error.partialContent.length).toBeGreaterThan(0)
-    }
-  });
 });

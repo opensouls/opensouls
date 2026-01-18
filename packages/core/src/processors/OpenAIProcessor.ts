@@ -1,32 +1,37 @@
-import OpenAI from "openai";
-import { RequestOptions } from "openai/core";
 import { trace, context } from "@opentelemetry/api";
-import { backOff } from "exponential-backoff";
-import { ZodError, fromZodError } from 'zod-validation-error';
+import { createOpenAI, openai } from "@ai-sdk/openai";
+import { streamText } from "ai";
+import { ZodError, fromZodError } from "zod-validation-error";
 
 import { registerProcessor } from "./registry.ts";
 import { ChatMessageRoleEnum, Memory } from "../Memory.ts";
-import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { encodeChat } from "gpt-tokenizer/model/gpt-4";
-import { ChatMessage } from "gpt-tokenizer/GptEncoding";
 import {
+  buildAbortSignal,
   extractJSON,
   Processor,
   prepareMemoryForJSON,
   ProcessOpts,
-  ProcessResponse
+  ProcessResponse,
+  RequestOptions
 } from "./Processor.ts";
 import { fixMessageRoles } from "./messageRoleFixer.ts";
 import { indentNicely } from "../utils.ts";
-import { createLLMStreamReader } from '../utils/llmStreamReader.ts';
-import { UsageError } from '../utils/llmStreamReader.ts';
+import { convertMemoriesToCoreMessages } from "./shared/messageConverter.ts";
+import { wrapVercelSDKResponse } from "./shared/responseWrapper.ts";
 
 const tracer = trace.getTracer(
   'open-souls-OpenAIProcessor',
   '0.0.1',
 );
 
-export type OpenAIClientConfig = ConstructorParameters<typeof OpenAI>[0];
+export type OpenAIClientConfig = Parameters<typeof createOpenAI>[0];
+
+export type OpenAICompletionParams = {
+  model?: string;
+  maxOutputTokens?: number;
+  temperature?: number;
+  maxRetries?: number;
+};
 
 const memoryToChatMessage = (memory: Memory): ChatCompletionMessageParam => {
   return {
@@ -40,7 +45,7 @@ export type ReasoningEffort = "minimal" | "none" | "low" | "medium" | "high";
 
 export interface OpenAIProcessorOpts {
   clientOptions?: OpenAIClientConfig
-  defaultCompletionParams?: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>
+  defaultCompletionParams?: Partial<OpenAICompletionParams>
   defaultRequestOptions?: Partial<RequestOptions>
   singleSystemMessage?: boolean,
   forcedRoleAlternation?: boolean,
@@ -53,21 +58,21 @@ export interface OpenAIProcessorOpts {
   reasoningEffort?: ReasoningEffort,
 }
 
-const DEFAULT_MODEL = "gpt-3.5-turbo-0125"
+const DEFAULT_MODEL = "gpt-5-mini"
 
 export class OpenAIProcessor implements Processor {
   static label = "openai"
-  private client: OpenAI
+  private openaiProvider: ReturnType<typeof createOpenAI> | typeof openai
 
   private singleSystemMessage: boolean
   private forcedRoleAlternation: boolean
   private disableResponseFormat: boolean // default this one to true
   private defaultRequestOptions: Partial<RequestOptions>
-  private defaultCompletionParams: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>
+  private defaultCompletionParams: Partial<OpenAICompletionParams>
   private reasoningEffort?: ReasoningEffort
 
   constructor({ clientOptions, singleSystemMessage, forcedRoleAlternation, defaultRequestOptions, defaultCompletionParams, disableResponseFormat, reasoningEffort }: OpenAIProcessorOpts) {
-    this.client = new OpenAI(clientOptions)
+    this.openaiProvider = clientOptions ? createOpenAI(clientOptions) : openai
     this.singleSystemMessage = singleSystemMessage || false
     this.forcedRoleAlternation = forcedRoleAlternation || false
     this.defaultRequestOptions = defaultRequestOptions || {}
@@ -91,14 +96,16 @@ export class OpenAIProcessor implements Processor {
           memory: JSON.stringify(memory),
         })
 
-        return backOff(
-          async () => {
+        const maxAttempts = 5
+        let lastError: unknown
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          try {
             const resp = await this.execute({
               ...opts,
               memory,
             })
 
-            // TODO: how do we both return a stream *and* also parse the json and retry?
             if (opts.schema) {
               const completion = await resp.rawCompletion
               const extracted = extractJSON(completion)
@@ -106,7 +113,7 @@ export class OpenAIProcessor implements Processor {
               span.setAttribute("extracted", extracted || "none")
               if (!extracted) {
                 globalThis.console.error("no json found in completion", completion)
-                throw new Error('no json found in completion')
+                throw new Error("no json found in completion")
               }
               try {
                 const parsed = opts.schema.parse(JSON.parse(extracted))
@@ -135,28 +142,27 @@ export class OpenAIProcessor implements Processor {
                     `
                   }
                 ])
-                throw err
+                lastError = err
+                span.addEvent("retry")
+                continue
               }
-
             }
 
             return {
               ...resp,
               parsed: (resp.rawCompletion as Promise<SchemaType>)
             }
-          },
-          {
-            numOfAttempts: 5,
-            retry: (err) => {
-              if (err.message.includes("aborted")) {
-                return false
-              }
-              span.addEvent("retry")
-              globalThis.console.error("retrying due to error", err)
+          } catch (err: unknown) {
+            lastError = err
+            if (err instanceof Error && err.message.includes("aborted")) {
+              throw err
+            }
+            span.addEvent("retry")
+            globalThis.console.error("retrying due to error", err)
+          }
+        }
 
-              return true
-            },
-          })
+        throw lastError
       } catch (err: unknown) {
         globalThis.console.error("error in process", err)
         span.recordException(err as Error)
@@ -181,13 +187,9 @@ export class OpenAIProcessor implements Processor {
         const model = developerSpecifiedModel || this.defaultCompletionParams.model || DEFAULT_MODEL;
         const isGpt5Model = model.startsWith("gpt-5");
         const isGpt5MiniOrNano = model.includes("-mini") || model.includes("-nano");
-        const tokenLimits: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams> =
-          maxTokens
-            ? (isGpt5Model
-              ? ({ max_completion_tokens: maxTokens } as Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>)
-              : { max_tokens: maxTokens })
-            : {};
-        const messages = this.possiblyFixMessageRoles(memory.memories.map(memoryToChatMessage));
+        const tokens = maxTokens ?? this.defaultCompletionParams.maxOutputTokens;
+        const messages = this.possiblyFixMessageRoles(memory.memories);
+        const coreMessages = convertMemoriesToCoreMessages(messages);
         
         // Determine reasoning effort for GPT-5 models:
         // - gpt-5-mini and gpt-5-nano use "minimal" to disable thinking
@@ -199,58 +201,33 @@ export class OpenAIProcessor implements Processor {
           if (effort === "none" && isGpt5MiniOrNano) return "minimal";
           return effort;
         };
-        
-        const params = {
-          ...this.defaultCompletionParams,
-          ...tokenLimits,
-          model,
-          messages,
-          stream_options: {
-            include_usage: true,
-          },
-          ...(isGpt5Model ? {} : { temperature: temperature ?? 0.8 }),
-          ...(isGpt5Model ? { reasoning_effort: getReasoningEffort() as OpenAI.Chat.Completions.ChatCompletionReasoningEffort } : {}),
+        const abortSignal = buildAbortSignal(signal, timeout ?? this.defaultRequestOptions.timeout);
+        const providerOptions = isGpt5Model
+          ? { openai: { reasoningEffort: getReasoningEffort() } }
+          : undefined;
+
+        const request = {
+          model: this.openaiProvider(model),
+          messages: coreMessages,
+          abortSignal,
+          ...(tokens ? { maxOutputTokens: tokens } : {}),
+          ...(isGpt5Model ? {} : { temperature: temperature ?? this.defaultCompletionParams.temperature ?? 0.8 }),
+          ...(this.defaultCompletionParams.maxRetries ? { maxRetries: this.defaultCompletionParams.maxRetries } : {}),
+          ...(providerOptions ? { providerOptions } : {}),
         };
 
         span.setAttributes({
-          outgoingParams: JSON.stringify(params),
+          outgoingParams: JSON.stringify({
+            model,
+            maxOutputTokens: tokens,
+            temperature: request.temperature,
+          }),
         });
 
-        const stream = await this.client.chat.completions.create(
-          {
-            ...params,
-            stream: true,
-            ...(!this.disableResponseFormat && { 
-              response_format: { 
-                type: schema ? "json_object" : "text",
-              } 
-            })
-          },
-          {
-            ...this.defaultRequestOptions,
-            signal,
-            timeout: timeout || 10_000,
-          }
-        );
+        const result = await streamText(request);
+        span.setAttribute("model", model);
 
-        const { textStream, fullContent, usage } = createLLMStreamReader(stream as AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>);
-
-        const returnedUsage = usage
-          .then(({ input, output }) => {
-            span.setAttribute("model", model);
-            span.setAttribute("usage-input", input);
-            span.setAttribute("usage-output", output);
-            return { model, input, output }
-          })
-          .catch((err: UsageError) => {
-            return { model, input: encodeChat(messages as ChatMessage[]).length, output: err.partialUsage.output }
-          })
-
-        return {
-          rawCompletion: fullContent,
-          stream: textStream,
-          usage: returnedUsage
-        };
+        return wrapVercelSDKResponse(result, model, schema);
       } catch (err: unknown) {
         span.recordException(err as Error);
         throw err;
@@ -260,7 +237,7 @@ export class OpenAIProcessor implements Processor {
     });
   }
 
-  private possiblyFixMessageRoles(messages: (Memory | ChatCompletionMessageParam)[]): ChatCompletionMessageParam[] {
+  private possiblyFixMessageRoles(messages: Memory[]): Memory[] {
     return fixMessageRoles({ singleSystemMessage: this.singleSystemMessage, forcedRoleAlternation: this.forcedRoleAlternation }, messages)
   }
 }

@@ -1,17 +1,35 @@
-# Vercel AI SDK Migration Plan
+# Vercel AI SDK Migration Plan (SDK v6)
 
 ## Summary
 
-Migrate the 3 remaining processors (OpenAI, Anthropic, Google) to use `ai` (Vercel AI SDK) for streaming and text generation, removing custom `llmStreamReader` logic. The existing `ProcessResponse` interface will be preserved to maintain backward compatibility.
+Migrate the 3 existing processors (OpenAI, Anthropic, Google) plus new OpenRouter processor to use `ai` (Vercel AI SDK v6) for streaming and text generation. The existing `ProcessResponse` interface will be preserved to maintain backward compatibility.
 
-## Dependencies to Add
+## Migration Phases
+
+### Phase 1: Foundation (This PR)
+- Install Vercel AI SDK v6 and provider packages
+- Create OpenRouterProcessor as the first implementation using Vercel SDK
+- Create shared utilities for message conversion and response wrapping
+
+### Phase 2: Core Processor Migration
+- Migrate OpenAIProcessor to use @ai-sdk/openai
+- Migrate AnthropicProcessor to use @ai-sdk/anthropic
+- Migrate GoogleProcessor to use @ai-sdk/google
+
+### Phase 3: Cleanup
+- Remove deprecated dependencies
+- Delete llmStreamReader.ts
+- Run full test suite
+
+## Dependencies to Add (SDK v6)
 
 ```json
 {
-  "ai": "^3.x",
-  "@ai-sdk/openai": "^0.x",
-  "@ai-sdk/anthropic": "^0.x", 
-  "@ai-sdk/google": "^0.x"
+  "ai": "^4.0.0",
+  "@openrouter/ai-sdk-provider": "^1.0.0",
+  "@ai-sdk/openai": "^1.0.0",
+  "@ai-sdk/anthropic": "^1.0.0", 
+  "@ai-sdk/google": "^1.0.0"
 }
 ```
 
@@ -20,6 +38,74 @@ Migrate the 3 remaining processors (OpenAI, Anthropic, Google) to use `ai` (Verc
 - Direct `@anthropic-ai/sdk` usage (keep types only)
 - `gpt-tokenizer` (Vercel handles token counting)
 - `web-streams-polyfill`
+
+## Files to Create
+
+### 1. packages/core/src/processors/OpenRouterProcessor.ts
+
+New processor using @openrouter/ai-sdk-provider:
+
+```typescript
+import { openrouter } from "@openrouter/ai-sdk-provider";
+import { streamText, generateText } from "ai";
+
+// In execute():
+const result = await streamText({
+  model: openrouter(model),
+  messages: convertMemoriesToCoreMessages(memory),
+  maxTokens,
+  temperature,
+  abortSignal: signal,
+});
+```
+
+### 2. packages/core/src/processors/shared/messageConverter.ts
+
+Shared utility to convert WorkingMemory to Vercel AI SDK's CoreMessage[] format:
+
+```typescript
+import { CoreMessage } from "ai";
+import { WorkingMemory } from "../../WorkingMemory.ts";
+import { ChatMessageContent } from "../../Memory.ts";
+
+export function convertMemoriesToCoreMessages(memory: WorkingMemory): CoreMessage[] {
+  return memory.memories.map(m => ({
+    role: mapRole(m.role),
+    content: m.content,
+    name: m.name,
+  }));
+}
+
+function mapRole(role: ChatMessageRoleEnum): "user" | "assistant" | "system" | "tool" | "data" {
+  // ... mapping logic
+}
+```
+
+### 3. packages/core/src/processors/shared/responseWrapper.ts
+
+Helper function to convert Vercel SDK stream results to ProcessResponse:
+
+```typescript
+import { StreamTextResult } from "ai";
+import { ProcessResponse } from "../Processor.ts";
+import { ZodSchema } from "zod";
+
+export function wrapVercelSDKResponse<T>(
+  result: StreamTextResult,
+  schema?: ZodSchema<T>
+): ProcessResponse<T> {
+  return {
+    stream: result.textStream,
+    rawCompletion: result.text,
+    parsed: schema ? parseJSON(result.text, schema) : result.text,
+    usage: result.usage.then(u => ({ 
+      model: result.model, 
+      input: u.promptTokens, 
+      output: u.completionTokens 
+    })),
+  };
+}
+```
 
 ## Files to Modify
 
@@ -72,38 +158,22 @@ const result = await streamText({
 });
 ```
 
-### 4. packages/core/src/processors/Processor.ts
+### 4. packages/core/src/processors/index.ts
 
-Add a helper function to convert Vercel SDK stream results to `ProcessResponse`:
+Add OpenRouterProcessor export:
 
 ```typescript
-export function wrapVercelSDKResponse<T>(
-  result: StreamTextResult,
-  schema?: ZodSchema<T>
-): ProcessResponse<T>
+export * from "./OpenRouterProcessor.ts"
 ```
 
-### 5. Files to Delete
+## Files to Delete
 
-- packages/core/src/utils/llmStreamReader.ts - replaced by Vercel SDK
 - packages/core/src/processors/OpenAICompatibleProcessor.ts - per decision
+- packages/core/src/utils/llmStreamReader.ts - replaced by Vercel SDK
 
-### 6. Update packages/core/src/processors/index.ts
+## Key Implementation Details (SDK v6)
 
-Remove `OpenAICompatibleProcessor` export.
-
-## Key Implementation Details
-
-**Message Conversion**: Create a shared utility to convert `WorkingMemory` to Vercel AI SDK's `CoreMessage[]` format:
-
-```typescript
-function memoryToCoreMessages(memory: WorkingMemory): CoreMessage[] {
-  return memory.memories.map(m => ({
-    role: m.role,
-    content: m.content, // Handle text/image/audio content
-  }));
-}
-```
+**Message Conversion**: Create a shared utility to convert `WorkingMemory` to Vercel AI SDK's `CoreMessage[]` format (see messageConverter.ts above).
 
 **Preserving ProcessResponse Interface**: Wrap Vercel SDK's response:
 
@@ -116,7 +186,7 @@ return {
 };
 ```
 
-**Image Support**: Vercel AI SDK natively supports images in the `CoreMessage` format - the existing image conversion logic in each processor can be simplified or removed.
+**Image Support**: Vercel AI SDK v6 natively supports images in the `CoreMessage` format - the existing image conversion logic in each processor can be simplified or removed.
 
 **Retry Logic**: Vercel AI SDK has built-in retry support via `maxRetries` option, replacing `exponential-backoff` usage.
 
@@ -128,11 +198,15 @@ return {
 
 ## Migration Steps
 
-1. Add Vercel AI SDK dependencies to package.json
-2. Create message conversion helper and ProcessResponse wrapper in Processor.ts
-3. Refactor OpenAIProcessor to use @ai-sdk/openai
-4. Refactor AnthropicProcessor to use @ai-sdk/anthropic
-5. Refactor GoogleProcessor to use @ai-sdk/google
-6. Delete llmStreamReader.ts, OpenAICompatibleProcessor.ts, update index.ts
-7. Run tests, update stream reader test file
+First run tests to make sure they pass before starting.
+
+1. Add Vercel AI SDK v6 dependencies to package.json with `bun add ai` etc (don't just edit the package.json)
+2. Create shared messageConverter.ts utility
+3. Create shared responseWrapper.ts utility
+4. Create OpenRouterProcessor using @ai-sdk/openrouter (this PR)
+5. Refactor OpenAIProcessor to use @ai-sdk/openai
+6. Refactor AnthropicProcessor to use @ai-sdk/anthropic
+7. Refactor GoogleProcessor to use @ai-sdk/google
+8. Delete llmStreamReader.ts, OpenAICompatibleProcessor.ts, update index.ts
+9. Run tests, update stream reader test file
 
