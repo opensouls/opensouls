@@ -201,7 +201,7 @@ const reengage: MentalProcess = async ({ workingMemory }) => {
   const [withReengagement, stream] = await externalDialog(
     workingMemory,
     "Tell the user a really bad dad joke.",
-    { stream: true, model: "gpt-4-0125-preview" }
+    { stream: true, model: "quality" }
   );
   speak(stream);
 
@@ -225,7 +225,7 @@ const initialProcess: MentalProcess = async ({ workingMemory }) => {
   const [withDialog, stream] = await externalDialog(
     workingMemory,
     "Talk to the user trying to gain trust and learn about their inner world.",
-    { stream: true, model: "gpt-4-0125-preview" }
+    { stream: true, model: "quality" }
   );
   speak(stream);
 
