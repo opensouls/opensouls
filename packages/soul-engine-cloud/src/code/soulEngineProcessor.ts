@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { AnthropicProcessor, AnthropicProcessorOpts, OpenAIProcessor, OpenAIProcessorOpts, ProcessOpts, ProcessResponse, Processor, WorkingMemory, WorkingMemoryInitOptions, getProcessor, isText, registerProcessor } from "@opensouls/engine";
+import { AnthropicProcessor, AnthropicProcessorOpts, InputMemory, OpenAIProcessor, OpenAIProcessorOpts, ProcessOpts, ProcessResponse, Processor, WorkingMemory, WorkingMemoryInitOptions, getProcessor, isText, registerProcessor } from "@opensouls/engine";
 import { MinimalMetadata } from "../metrics.ts";
 import { usage } from "../usage/index.ts";
 import { MODEL_MAP } from "./modelMap.ts";
@@ -157,17 +157,17 @@ export class SoulEngineProcessor implements Processor {
     if (isTestMode()) {
       return new TestProcessor()
     }
-    model ||= this.defaultModel
+    const resolvedModel = model ?? this.defaultModel ?? "fast"
 
     // this path expects "organizationSlug/modelName" as the model where the modelName is the *custom* model name setup when creating a new custom processor
-    if (this.isOrgModel(model)) {
+    if (this.isOrgModel(resolvedModel)) {
       throw new Error(CUSTOM_PROCESSORS_REMOVED_MESSAGE)
     }
 
-    const modelParams = MODEL_MAP[model]
-    if (!modelParams?.processor) {
-      if (model.startsWith("gpt")) {
-        return getProcessor("openai-fixed-fetch", { defaultCompletionParams: { model }, defaultRequestParams: { signal: this.signal } })
+    const modelParams = MODEL_MAP[resolvedModel]
+    if (!(modelParams?.processor)) {
+      if (resolvedModel.startsWith("gpt")) {
+        return getProcessor("openai-fixed-fetch", { defaultCompletionParams: { model: resolvedModel }, defaultRequestParams: { signal: this.signal } })
       }
       return getProcessor("openrouter", { defaultRequestParams: { signal: this.signal } })
     }
