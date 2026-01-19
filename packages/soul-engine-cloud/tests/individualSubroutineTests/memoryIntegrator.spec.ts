@@ -16,6 +16,7 @@ describe("memory integrator", () => {
         const { speak } = useActions()
 
         if (workingMemory.at(0).content !== "You are modeling the mind of a beekeeper named Athena.") {
+          console.log(`working memory: '${workingMemory.at(0).content}'`)
           throw new Error("Expected the memory to be set to the context.")
         }
 
