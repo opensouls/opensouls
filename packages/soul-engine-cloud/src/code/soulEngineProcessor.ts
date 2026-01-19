@@ -166,6 +166,9 @@ export class SoulEngineProcessor implements Processor {
 
     const modelParams = MODEL_MAP[model]
     if (!modelParams?.processor) {
+      if (model.startsWith("gpt")) {
+        return getProcessor("openai-fixed-fetch", { defaultCompletionParams: { model }, defaultRequestParams: { signal: this.signal } })
+      }
       return getProcessor("openrouter", { defaultRequestParams: { signal: this.signal } })
     }
 
