@@ -67,6 +67,11 @@ export const setupSubroutineTestsDescribe = (customOrgSlug?: string) => {
 
   afterEach(async () => {
     if (setupData.organizationId) {
+      await prisma.vector_store.deleteMany({
+        where: {
+          organization_id: setupData.organizationId
+        }
+      })
       await prisma.organizations.delete({
         where: {
           id: setupData.organizationId

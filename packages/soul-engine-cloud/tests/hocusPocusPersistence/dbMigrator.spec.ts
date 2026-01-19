@@ -31,7 +31,7 @@ describe("dbMigrator", () => {
   it("migrates documents from debug_chat_version to volume", async () => {
     // Create a test document in debug_chat_version
     const testDocName = "test-doc-" + Date.now();
-    const testState = Buffer.from("Test state");
+    const testState = new TextEncoder().encode("Test state");
     await prisma.debug_chat_version.create({
       data: {
         name: testDocName,

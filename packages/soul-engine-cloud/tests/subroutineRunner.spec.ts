@@ -58,6 +58,11 @@ describe("SubroutineRunner", () => {
 
   afterEach(async () => {
     if (organizationId) {
+      await prisma.vector_store.deleteMany({
+        where: {
+          organization_id: organizationId
+        }
+      })
       await prisma.organizations.delete({
         where: {
           id: organizationId

@@ -8,6 +8,10 @@ type AllowedDatabaseTables = "soul_source_docs" | "debug_chat" | "debug_chat_ver
 
 type RowTypes = soul_source_docs | debug_chat | soul_sessions | cycle_vector_stores
 
+const bytesToHex = (bytes: Uint8Array) => {
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("")
+}
+
 export const fetchState = async (documentName: string) => {
   const prisma = getPrismaClient()
   const { docType } = documentNameToAttributes(documentName)
@@ -79,17 +83,18 @@ export const storeState = async (organizationId: string, documentName: string, s
     }
     const upsertQuery = `
       INSERT INTO ${tableName} (name, organization_id, subroutine_slug, state, updated_at)
-      VALUES ($1, $2::uuid, $3, $4, NOW())
+      VALUES ($1, $2::uuid, $3, decode($4, 'hex'), NOW())
       ON CONFLICT (name)
       DO UPDATE SET
         state = EXCLUDED.state,
         updated_at = EXCLUDED.updated_at;
     `
+    const stateHex = bytesToHex(state)
     const values = [
       documentName,
       organizationId,
       fullSubroutineSlug,
-      state
+      stateHex
     ];
     await prisma.$queryRawUnsafe<RowTypes[]>(
       upsertQuery,
