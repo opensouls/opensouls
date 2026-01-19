@@ -5,7 +5,7 @@ type Processors = "openai" | "anthropic" | "fireworks" | "google"
 export type ModelParams = { name: string; processor: Processors ; pricingTier: keyof typeof PRICING_TIERS }
 
 export const MODEL_MAP: Record<SupportedModel, ModelParams> = {
-    "fast": { name: "gpt-3.5-turbo-0125", processor: "openai", pricingTier: "gpt_3_5_turbo" },
+    "fast": { name: "gpt-5-mini", processor: "openai", pricingTier: "gpt_5_mini" },
     "quality": { name: "gpt-4-0125-preview", processor: "openai", pricingTier: "gpt_4_turbo" },
     "vision": { name: "gpt-4o", processor: "openai", pricingTier: "gpt_4o" },
     "gpt-3.5-turbo-0125": { name: "gpt-3.5-turbo-0125", processor: "openai", pricingTier: "gpt_3_5_turbo" },

@@ -14,7 +14,7 @@ enum BogusAction {
 describe("EvilCharacters", () => {
 
   // swap the model here to test differences
-  // const model = "gpt-3.5-turbo-1106"
+  // const model = "gpt-5-mini"
   // const model = "gpt-4o"
 
   const fairyTales = [

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { beforeAll, describe, expect, it } from "bun:test";
 import { compartmentalize } from "./testStaticModule.ts";
-import { Blueprint, MentalProcess, useActions, useProcessManager, useSoulStore } from "soul-engine";
+import { Blueprint, MentalProcess, useActions, useProcessManager, useSoulStore } from "@opensouls/engine";
 import { html } from "common-tags";
 import { externalDialog } from "socialagi";
 import "ses"
@@ -53,7 +53,7 @@ describe("test compartmentalizer", () => {
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { beforeAll, describe, expect, it } from "bun:test";
 import { compartmentalize } from "./testStaticModule.ts";
-import { Blueprint, MentalProcess, useActions, useProcessManager, useSoulStore } from "soul-engine";
+import { Blueprint, MentalProcess, useActions, useProcessManager, useSoulStore } from "@opensouls/engine";
 import { html } from "common-tags";
 import { externalDialog } from "socialagi";
 import "ses"

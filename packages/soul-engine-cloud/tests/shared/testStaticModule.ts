@@ -1,7 +1,7 @@
 import { StaticModuleRecord } from "@endo/static-module-record";
 import { SoulCompartment } from "../../src/code/soulCompartment.ts";
 import { html } from "common-tags";
-import { SoulEnvironment } from "soul-engine/soul";
+import { SoulEnvironment } from "@opensouls/engine";
 import { indentNicely } from "@opensouls/core";
 
 
@@ -14,7 +14,7 @@ export const compartmentalize = async (fn: (...args: any[]) => void, environment
     // then we add standard imports (since this is a test, we won't allow any others)
     const importBlock = html`
       import { ChatMessageRoleEnum, externalDialog, instruction, internalMonologue, mentalQuery, z } from "socialagi"
-      import { useActions, useProcessManager, useSoulStore, useBlueprintStore, useOrganizationStore, useSoulMemory, useRag, usePerceptions } from "soul-engine"
+      import { useActions, useProcessManager, useSoulStore, useBlueprintStore, useOrganizationStore, useSoulMemory, useRag, usePerceptions } from "@opensouls/engine"
       import { html } from "common-tags"
     `
 

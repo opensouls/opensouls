@@ -33,14 +33,6 @@ export type OpenAICompletionParams = {
   maxRetries?: number;
 };
 
-const memoryToChatMessage = (memory: Memory): ChatCompletionMessageParam => {
-  return {
-    role: memory.role,
-    content: memory.content,
-    ...(memory.name && { name: memory.name })
-  } as ChatCompletionMessageParam
-}
-
 export type ReasoningEffort = "minimal" | "none" | "low" | "medium" | "high";
 
 export interface OpenAIProcessorOpts {
@@ -72,6 +64,8 @@ export class OpenAIProcessor implements Processor {
   private reasoningEffort?: ReasoningEffort
 
   constructor({ clientOptions, singleSystemMessage, forcedRoleAlternation, defaultRequestOptions, defaultCompletionParams, disableResponseFormat, reasoningEffort }: OpenAIProcessorOpts) {
+    // Use the default AI SDK provider - it handles Bun natively
+    // Only create a custom provider if clientOptions are provided
     this.openaiProvider = clientOptions ? createOpenAI(clientOptions) : openai
     this.singleSystemMessage = singleSystemMessage || false
     this.forcedRoleAlternation = forcedRoleAlternation || false
@@ -224,7 +218,7 @@ export class OpenAIProcessor implements Processor {
           }),
         });
 
-        const result = await streamText(request);
+        const result = streamText(request);
         span.setAttribute("model", model);
 
         return wrapVercelSDKResponse(result, model, schema);

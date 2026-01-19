@@ -30,7 +30,8 @@ export class WorkerController {
 
   spawn(): Promise<void> {
     logger.info("[controller] spawning worker");
-    this.childProcess = Bun.spawn(["bun", "src/worker/worker.ts"], {
+    const bunPath = process.execPath || "bun";
+    this.childProcess = Bun.spawn([bunPath, "src/worker/worker.ts"], {
       ipc: this.handleMessage,
       stdout: "inherit",
       env: {

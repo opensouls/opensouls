@@ -1,10 +1,10 @@
 import { CognitiveEventAbsolute, MentalProcess as EngineProcess, indentNicely, useActions } from "@opensouls/engine"
 import { v4 as uuidv4 } from "uuid"
 import {  describe, it, expect } from "bun:test"
-import { SoulEventKinds } from "soul-engine/soul"
+import { SoulEventKinds } from "@opensouls/engine"
 import { compartmentalizeWithEngine } from "../shared/testStaticModule.ts"
 import { Blueprint } from "../../src/code/soulCompartment.ts"
-import { useProcessManager } from "soul-engine"
+import { useProcessManager } from "@opensouls/engine"
 import { PendingCognitiveEvent } from "../../src/updatingScheduledEventcontainer.ts"
 import { setupSubroutine, setupSubroutineTestsDescribe } from "../shared/individualSubroutineTestSetup.ts"
 

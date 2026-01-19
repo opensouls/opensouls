@@ -2,7 +2,6 @@ import 'dotenv/config'
 import { AnthropicProcessor, AnthropicProcessorOpts, InputMemory, Memory, OpenAIProcessor, OpenAIProcessorOpts, ProcessOpts, ProcessResponse, Processor, WorkingMemory, WorkingMemoryInitOptions, getProcessor, registerProcessor } from "@opensouls/engine";
 import { Memory as SocialAGIMemory } from "socialagi";
 import { MinimalMetadata } from "../metrics.ts";
-import fetch from "node-fetch"
 import { usage } from "../usage/index.ts";
 import { MODEL_MAP } from "./modelMap.ts";
 
@@ -87,7 +86,6 @@ registerProcessor("fireworks", (opts: Partial<OpenAIProcessorOpts> = {}) => {
     clientOptions: {
       baseURL: "https://api.fireworks.ai/inference/v1",
       apiKey: process.env.FIREWORKS_API_KEY,
-      fetch,
     },
     singleSystemMessage: true,
     forcedRoleAlternation: true,
@@ -104,7 +102,6 @@ registerProcessor("mistral", (opts: Partial<OpenAIProcessorOpts> = {}) => {
     clientOptions: {
       baseURL: "https://api.mistral.ai/v1/",
       apiKey: process.env.MISTRAL_API_KEY,
-      fetch,
     },
     singleSystemMessage: true,
     defaultCompletionParams: {
@@ -118,10 +115,6 @@ registerProcessor("mistral", (opts: Partial<OpenAIProcessorOpts> = {}) => {
 registerProcessor("openai-fixed-fetch", (opts: Partial<OpenAIProcessorOpts> = {}) => {
   return new OpenAIProcessor({
     ...opts,
-    clientOptions: {
-      ...opts.clientOptions,
-      fetch,
-    }
   })
 })
 
@@ -130,7 +123,6 @@ registerProcessor("anthropic-fixed-fetch", (opts: Partial<AnthropicProcessorOpts
     ...opts,
     clientOptions: {
       ...opts.clientOptions,
-      fetch,
     },
   })
 })

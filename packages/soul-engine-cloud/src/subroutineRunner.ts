@@ -29,7 +29,6 @@ import { UpdatingScheduledEventContainer } from "./updatingScheduledEventcontain
 import { SharedContext, UseSharedContextFn } from "./sharedContexts.ts"
 import { OpenAITTSProcessor } from "./tts/OpenAITTSProcessor.ts"
 import { Buffer } from "buffer"
-import { LOADIPHLPAPI } from "dns"
 
 const TTS_CHUNK_TIMEOUT_MS = 30_000
 const TTS_DURATION_TIMEOUT_MS = 10_000

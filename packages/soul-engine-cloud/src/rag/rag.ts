@@ -1,6 +1,3 @@
-// need to use node-fetch because of a problem with bun https://github.com/oven-sh/bun/issues/9429
-import fetch from "node-fetch"
-
 import { VectorMetadata, type RagSearchOpts, WorkingMemory } from "@opensouls/engine"
 import { ChatMessageRoleEnum, CortexStep, OpenAILanguageProgramProcessor, brainstorm, instruction } from "socialagi"
 import { isWithinTokenLimit } from "gpt-tokenizer/model/gpt-4"
@@ -11,6 +8,7 @@ import { VectorDb } from "../storage/vectorDb.ts"
 import { logger } from "../logger.ts"
 import { coreMemoryToSocialAGIMemory, socialAGIMemoryToCoreMemory } from "../code/soulEngineProcessor.ts"
 import { DEFAULT_EMBEDDING_MODEL } from "../storage/embedding/opensoulsEmbedder.ts"
+
 
 interface RAGOpts {
   bucket: string
@@ -205,8 +203,8 @@ export class RAG {
   private questionAnsweringStep(originalStep: CortexStep<any>) {
     return new CortexStep(originalStep.entityName, {
       processor: new OpenAILanguageProgramProcessor({}, {
-        fetch,
-        model: "gpt-3.5-turbo-1106",
+        fetch: Bun.fetch,
+        model: "gpt-5-mini",
         max_tokens: 200,
       })
     }).withMemory(originalStep.memories.flat().slice(0,1))

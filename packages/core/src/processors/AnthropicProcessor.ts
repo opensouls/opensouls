@@ -1,5 +1,5 @@
 import { trace, context } from "@opentelemetry/api";
-import { createAnthropic, anthropic } from "@ai-sdk/anthropic";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
 import { registerProcessor } from "./registry.ts";
 import { Memory } from "../Memory.ts";

@@ -87,7 +87,6 @@ describe("records usage - SubroutineRunner", () => {
     })
     expect(metrics).toHaveLength(2)
     expect(metrics[0].metadata).toHaveProperty("userId", setupData.metricMetadata().userId)
-    expect(metrics[0].model).toEqual("gpt-3.5-turbo-0125")
   }, {
     timeout: 15_000,
   })

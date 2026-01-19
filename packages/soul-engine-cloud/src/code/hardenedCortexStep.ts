@@ -1,13 +1,10 @@
-// need to use node-fetch because of a problem with bun https://github.com/oven-sh/bun/issues/9429
-import fetch from "node-fetch"
-
-import { encodeChatGenerator} from "gpt-tokenizer/model/gpt-4";
+import { encodeChatGenerator } from "gpt-tokenizer/model/gpt-4";
 import { ChatMessage, ContentText, FunctionlessLLM, NextFunction, NextOptions, OpenAILanguageProgramProcessor, AnthropicProcessor } from "socialagi";
 import { CortexStep } from "socialagi"
 import { SUPPORTED_MODELS, SupportedModel } from "@opensouls/core";
 import { logger } from "../logger.ts";
 
-const DEFAULT_MODEL = "gpt-3.5-turbo-1106"
+const DEFAULT_MODEL = "gpt-5-mini"
 
 export const VIRTUAL_MODEL_MAP: Record<SupportedModel,string> = {
   "fast": "gpt-3.5-turbo-1106",
@@ -78,8 +75,8 @@ export class HardenedCortexStep {
   static defaultBlankStep(name: string, signal: AbortSignal) {
     return new CortexStep(name, {
       processor: new OpenAILanguageProgramProcessor({}, {
-        fetch,
-        model: "gpt-3.5-turbo-1106",
+        fetch: Bun.fetch,
+        model: "gpt-5-mini",
       }, {
         signal,
       })

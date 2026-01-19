@@ -1,5 +1,5 @@
 import { ChatMessageRoleEnum, brainstorm, decision, externalDialog, mentalQuery } from "socialagi";
-import { MentalProcess, useProcessManager, useProcessMemory, useActions } from "soul-engine";
+import { MentalProcess, useProcessManager, useProcessMemory, useActions } from "@opensouls/engine";
 import answersGuesses from "./mentalProcesses/answersQuestions.ts";
 
 const introduction: MentalProcess = async ({ step: initialStep }) => {
