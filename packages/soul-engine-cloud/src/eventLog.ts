@@ -2,8 +2,7 @@ import { Doc } from "yjs"
 import { EventEmitter } from "events"
 import syncedStore, { getYjsValue } from "./forked-synced-store/index.ts"
 import { v4 as uuidv4 } from "uuid"
-import { EventLogMetadata, Perception, SoulEvent, SoulEventKinds, SoulEnvironment, Json } from "@opensouls/engine"
-import { z } from "socialagi"
+import { EventLogMetadata, Perception, SoulEvent, SoulEventKinds, SoulEnvironment, Json, z } from "@opensouls/engine"
 
 interface JsonRPCCall {
   id: string

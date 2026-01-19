@@ -1,9 +1,8 @@
-import { createCognitiveStep, MentalProcess as EngineProcess, indentNicely, useActions, WorkingMemory } from "@opensouls/engine"
+import { ChatMessageRoleEnum, createCognitiveStep, MentalProcess as EngineProcess, indentNicely, useActions, WorkingMemory } from "@opensouls/engine"
 import { describe, it, expect } from "bun:test"
 import { compartmentalizeWithEngine } from "../shared/testStaticModule.ts"
 import { Blueprint } from "../../src/code/soulCompartment.ts"
 import { setupSubroutine, setupSubroutineTestsDescribe } from "../shared/individualSubroutineTestSetup.ts"
-import { ChatMessageRoleEnum } from "socialagi"
 import { getPrismaClient } from "../../src/prisma.ts"
 
 describe("records usage - SubroutineRunner", () => {

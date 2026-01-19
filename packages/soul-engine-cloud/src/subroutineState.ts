@@ -1,8 +1,7 @@
-import { Perception, CognitiveEventAbsolute, Json } from "@opensouls/engine"
+import { Memory, Perception, CognitiveEventAbsolute, Json } from "@opensouls/engine"
 import { EventLogDoc } from "./eventLog.ts"
 import { SoulVectorStore } from "./storage/soulStores.ts"
 import { ExportedRuntimeState } from "./useProcessMemory.ts"
-import { Memory } from "socialagi"
 
 export interface SubroutineAttributes {
   name: string

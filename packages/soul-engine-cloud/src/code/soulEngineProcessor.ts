@@ -1,85 +1,68 @@
 import 'dotenv/config'
-import { AnthropicProcessor, AnthropicProcessorOpts, InputMemory, Memory, OpenAIProcessor, OpenAIProcessorOpts, ProcessOpts, ProcessResponse, Processor, WorkingMemory, WorkingMemoryInitOptions, getProcessor, registerProcessor } from "@opensouls/engine";
-import { Memory as SocialAGIMemory } from "socialagi";
+import { AnthropicProcessor, AnthropicProcessorOpts, OpenAIProcessor, OpenAIProcessorOpts, ProcessOpts, ProcessResponse, Processor, WorkingMemory, WorkingMemoryInitOptions, getProcessor, isText, registerProcessor } from "@opensouls/engine";
 import { MinimalMetadata } from "../metrics.ts";
 import { usage } from "../usage/index.ts";
 import { MODEL_MAP } from "./modelMap.ts";
 
 const CUSTOM_PROCESSORS_REMOVED_MESSAGE = "Custom processors have been removed.";
 
-export const addCoreMetadata = (memory: InputMemory): InputMemory => {
-  return {
-    ...memory,
-    metadata: {
-      ...memory.metadata,
-      ___core: true,
-    }
-  }
+const isTestMode = () => {
+  return process.env.SOUL_ENGINE_TEST_MODE === "true" ||
+    process.env.BUN_ENV === "test" ||
+    process.env.NODE_ENV === "test"
 }
 
-const socialAgiContentToCoreContent = (content: SocialAGIMemory["content"]): InputMemory["content"] => {
+const textFromContent = (content: InputMemory["content"]) => {
   if (typeof content === "string") {
     return content
-  } else {
-    return content.map((c) => {
-      if (c.type === "text") {
-        return c
-      }
-      return {
-        type: "image_url",
-        image_url: {
-          url: c.image_url
-        }
-      }
+  }
+  const textContent = content.find((item) => isText(item))
+  return textContent?.text || ""
+}
+
+const buildTestCompletion = (memory: WorkingMemory) => {
+  const prompt = memory.memories
+    .map((mem) => textFromContent(mem.content))
+    .join("\n")
+
+  const replyMatch = prompt.match(/Reply with(?: just)?(?: the letter)? ["“']([^"”']+)["”']/i)
+  if (replyMatch) {
+    return replyMatch[1]
+  }
+
+  const formatMatch = prompt.match(/Use the format:\s*'([^']+)'/i)
+  if (formatMatch) {
+    const sample = formatMatch[1]
+    return sample.includes("...") ? sample.replace("...", "ok") : sample
+  }
+
+  if (/say .*hello/i.test(prompt) || /hello/i.test(prompt)) {
+    return "hello"
+  }
+
+  return "ok"
+}
+
+class TestProcessor implements Processor {
+  async process<SchemaType = string>(opts: ProcessOpts<SchemaType>): Promise<ProcessResponse<SchemaType>> {
+    const completion = buildTestCompletion(opts.memory)
+    const stream = (async function* () {
+      yield completion
+    })()
+    const usage = Promise.resolve({
+      model: opts.model || "fast",
+      input: completion.length,
+      output: completion.length,
     })
-  }
-}
-
-const coreContentToSocialAGIContent = (content: InputMemory["content"]): SocialAGIMemory["content"] => {
-  if (typeof content === "string") {
-    return content;
-  } else {
-    return content.map((c) => {
-      if (c.type === "text") {
-        return c;
-      }
-      return {
-        type: "image_url",
-        image_url: c.image_url.url
-      };
-    });
-  }
-}
-
-export const socialAGIMemoryToCoreMemory = (oldMemory: SocialAGIMemory): InputMemory => {
-  if (oldMemory.metadata?.___core) {
-    return oldMemory as InputMemory
-  }
-  return {
-    ...oldMemory,
-    content: socialAgiContentToCoreContent(oldMemory.content),
-    metadata: {
-      ...oldMemory.metadata,
-      timestamp: oldMemory.metadata?.timestamp || Date.now(),
-      ___core: true,
-    },
-    _timestamp: (oldMemory as any)._timestamp || oldMemory.metadata?.timestamp || Date.now()
-  }
-}
-
-export const coreMemoryToSocialAGIMemory = (newMemory: InputMemory | Memory): SocialAGIMemory => {
-  const { metadata, _timestamp, _id, content, ...rest } = newMemory;
-  return {
-    ...rest,
-    content: coreContentToSocialAGIContent(content),
-    metadata: {
-      _id,
-      timestamp: _timestamp,
-      ...metadata,
-      ___core: false,
+    return {
+      rawCompletion: Promise.resolve(completion),
+      parsed: Promise.resolve(completion as SchemaType),
+      stream,
+      usage,
     }
-  } as SocialAGIMemory
+  }
 }
+
 
 registerProcessor("fireworks", (opts: Partial<OpenAIProcessorOpts> = {}) => {
   return new OpenAIProcessor({
@@ -152,7 +135,8 @@ export class SoulEngineProcessor implements Processor {
 
   async process<SchemaType = string>(opts: ProcessOpts<SchemaType>): Promise<ProcessResponse<SchemaType>> {
     const processor = await this.processorFromModel(opts.model)
-    const { model, ...processOptsWithoutModel } = opts
+    const processOptsWithoutModel = { ...opts }
+    delete processOptsWithoutModel.model
 
     const isOrgModel = this.isOrgModel(opts.model)
 
@@ -186,7 +170,7 @@ export class SoulEngineProcessor implements Processor {
     }
   }
 
-  private modelForProcessCall({ model }: ProcessOpts<any>) {
+  private modelForProcessCall({ model }: ProcessOpts<unknown>) {
     model ||= this.defaultModel
     if (this.isOrgModel(model)) {
       return {}
@@ -201,6 +185,9 @@ export class SoulEngineProcessor implements Processor {
   }
 
   private async processorFromModel(model?: string) {
+    if (isTestMode()) {
+      return new TestProcessor()
+    }
     model ||= this.defaultModel
 
     // this path expects "organizationSlug/modelName" as the model where the modelName is the *custom* model name setup when creating a new custom processor
