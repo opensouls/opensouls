@@ -64,37 +64,6 @@ class TestProcessor implements Processor {
 }
 
 
-registerProcessor("fireworks", (opts: Partial<OpenAIProcessorOpts> = {}) => {
-  return new OpenAIProcessor({
-    clientOptions: {
-      baseURL: "https://api.fireworks.ai/inference/v1",
-      apiKey: process.env.FIREWORKS_API_KEY,
-    },
-    singleSystemMessage: true,
-    forcedRoleAlternation: true,
-    defaultCompletionParams: {
-      model: "fireworks/nous-hermes-2-mixtral-8x7b-dpo-fp8",
-      maxOutputTokens: 16_000,
-    },
-    ...opts,
-  })
-})
-
-registerProcessor("mistral", (opts: Partial<OpenAIProcessorOpts> = {}) => {
-  return new OpenAIProcessor({
-    clientOptions: {
-      baseURL: "https://api.mistral.ai/v1/",
-      apiKey: process.env.MISTRAL_API_KEY,
-    },
-    singleSystemMessage: true,
-    defaultCompletionParams: {
-      model: "mistral-medium-latest",
-      maxOutputTokens: 1600,
-    },
-    ...opts,
-  })
-})
-
 registerProcessor("openai-fixed-fetch", (opts: Partial<OpenAIProcessorOpts> = {}) => {
   return new OpenAIProcessor({
     ...opts,
@@ -176,7 +145,7 @@ export class SoulEngineProcessor implements Processor {
       return {}
     }
     return {
-      model: MODEL_MAP[model].name
+      model: MODEL_MAP[model]?.name ?? model
     }
   }
 
@@ -197,7 +166,7 @@ export class SoulEngineProcessor implements Processor {
 
     const modelParams = MODEL_MAP[model]
     if (!modelParams?.processor) {
-      throw new Error('Looks like your model is unsupported')
+      return getProcessor("openrouter", { defaultRequestParams: { signal: this.signal } })
     }
 
     switch (modelParams.processor) {
@@ -205,10 +174,10 @@ export class SoulEngineProcessor implements Processor {
         return getProcessor("openai-fixed-fetch", { defaultCompletionParams: { model: modelParams.name }, defaultRequestParams: { signal: this.signal } })
       case "anthropic":
         return getProcessor("anthropic-fixed-fetch", { defaultCompletionParams: { model: modelParams.name }, defaultRequestParams: { signal: this.signal } })
-      case "fireworks":
-        return getProcessor("fireworks", { defaultCompletionParams: { model: modelParams.name }, defaultRequestParams: { signal: this.signal } })
       case "google":
         return getProcessor("google", { defaultCompletionParams: { model: modelParams.name }, defaultRequestParams: { signal: this.signal } })
+      case "openrouter":
+        return getProcessor("openrouter", { defaultCompletionParams: { model: modelParams.name }, defaultRequestParams: { signal: this.signal } })
       default:
         throw new Error('Looks like your model is unsupported')
     }
