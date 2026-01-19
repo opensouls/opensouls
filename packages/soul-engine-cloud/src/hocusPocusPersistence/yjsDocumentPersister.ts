@@ -1,6 +1,5 @@
 import { Database } from "@hocuspocus/extension-database"
 import { documentNameToAttributes } from "../documentNameToAttributes.ts"
-import { copyPrismaDocForVersioning, fetchState, storeMetadata } from "./prismaDocs.ts"
 import { copyVolumeDocForVersioning, getBytesFromVolume, storeBytesToVolume } from "./volumeDoc.ts"
 import { logger } from "../logger.ts"
 
@@ -39,15 +38,6 @@ export const fetch = async ({ documentName }: { documentName: string }) => {
   //   return tigrisBits
   // }
 
-  // then check for a prisma document
-  const databaseState = await fetchState(documentName)
-
-  if (databaseState) {
-    // if it's in the database, store it in the volume for next time
-    await storeBytesToVolume(documentName, databaseState)
-    return databaseState
-  }
-
   return null
 }
 
@@ -62,16 +52,8 @@ export const store = async ({ documentName, state, context }: StoreParams) => {
   if (documentName.startsWith('worker-status')) {
     return
   }
-  const isLocal = context?.organizationSlug === "local" || context?.organizationId === "local"
   try {
-    if (!isLocal) {
-      await Promise.all([
-        storeMetadata(context.organizationId, documentName, state as Uint8Array),
-        storeBytesToVolume(documentName, state as Uint8Array),
-      ])
-    } else {
-      await storeBytesToVolume(documentName, state as Uint8Array)
-    }
+    await storeBytesToVolume(documentName, state as Uint8Array)
   } catch (error) {
     logger.error("Error storing document", { documentName, error })
     throw error
@@ -82,10 +64,7 @@ export const store = async ({ documentName, state, context }: StoreParams) => {
 
 export const copyDocumentForVersioning = async (sourceDocName: string, targetDocName: string) => {
   const timer = logger.startTimer()
-  await Promise.all([
-    copyPrismaDocForVersioning(sourceDocName, targetDocName),
-    copyVolumeDocForVersioning(sourceDocName, targetDocName),
-  ])
+  await copyVolumeDocForVersioning(sourceDocName, targetDocName)
 
   timer.done({ message: "copyDocumentForVersioning", sourceDocName, targetDocName })
 }
