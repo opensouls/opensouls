@@ -1,6 +1,6 @@
 import { MentalProcess as EngineProcess, indentNicely, useActions } from "@opensouls/engine"
 import { describe, it, expect, beforeAll, afterAll } from "bun:test"
-import { SoulEventKinds } from "soul-engine/soul"
+import { SoulEventKinds } from "@opensouls/engine"
 import { compartmentalizeWithEngine } from "../shared/testStaticModule.ts"
 import { Blueprint } from "../../src/code/soulCompartment.ts"
 import { setupSubroutine, setupSubroutineTestsDescribe } from "../shared/individualSubroutineTestSetup.ts"

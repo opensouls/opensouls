@@ -213,7 +213,9 @@ export class VectorDb {
   }
 
   async searchByEmbedding({ embeddingModel, searchEmbedding, organizationId, bucket, filter, resultLimit, maxDistance, minSimilarity }: SearchOptsWithEmbedding) {
-    const querySimilarity = minSimilarity || (maxDistance ? Math.max(0, 1.0 - maxDistance) : 0.6)
+    const querySimilarity = minSimilarity ?? (maxDistance !== undefined
+      ? (maxDistance >= 1 ? -1 : 1.0 - maxDistance)
+      : 0.6)
     const embeddingLiteral = this.toVectorLiteral(searchEmbedding)
 
     const data = await this.prisma.$queryRaw<VectorRecordWithSimilarity[]>`

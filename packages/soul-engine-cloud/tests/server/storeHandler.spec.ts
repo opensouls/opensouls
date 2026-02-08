@@ -43,6 +43,9 @@ describe("storeHandler", () => {
     if (!orgId) {
       return
     }
+    await prisma.vector_store.deleteMany({
+      where: { organization_id: orgId }
+    })
     await prisma.organizations.delete({
       where: { id: orgId }
     })

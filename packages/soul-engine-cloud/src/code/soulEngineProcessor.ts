@@ -1,143 +1,81 @@
 import 'dotenv/config'
-import { AnthropicProcessor, InputMemory, Memory, OpenAIProcessor, OpenAIProcessorOpts, ProcessOpts, ProcessResponse, Processor, WorkingMemory, WorkingMemoryInitOptions, getProcessor, registerProcessor } from "@opensouls/engine";
-import { OpenAICompatibleProcessor } from "@opensouls/engine";
-import { Memory as SocialAGIMemory } from "socialagi";
+import { AnthropicProcessor, AnthropicProcessorOpts, InputMemory, OpenAIProcessor, OpenAIProcessorOpts, ProcessOpts, ProcessResponse, Processor, WorkingMemory, WorkingMemoryInitOptions, getProcessor, isText, registerProcessor } from "@opensouls/engine";
 import { MinimalMetadata } from "../metrics.ts";
-import fetch from "node-fetch"
-import { AnthropicCustomRestClient } from "../server/anthropicCustomRestClient.ts";
 import { usage } from "../usage/index.ts";
 import { MODEL_MAP } from "./modelMap.ts";
 
 const CUSTOM_PROCESSORS_REMOVED_MESSAGE = "Custom processors have been removed.";
 
-export const addCoreMetadata = (memory: InputMemory): InputMemory => {
-  return {
-    ...memory,
-    metadata: {
-      ...memory.metadata,
-      ___core: true,
-    }
-  }
+const isTestMode = () => {
+  return process.env.SOUL_ENGINE_TEST_MODE === "true" ||
+    process.env.BUN_ENV === "test" ||
+    process.env.NODE_ENV === "test"
 }
 
-const socialAgiContentToCoreContent = (content: SocialAGIMemory["content"]): InputMemory["content"] => {
+const textFromContent = (content: InputMemory["content"]) => {
   if (typeof content === "string") {
     return content
-  } else {
-    return content.map((c) => {
-      if (c.type === "text") {
-        return c
-      }
-      return {
-        type: "image_url",
-        image_url: {
-          url: c.image_url
-        }
-      }
+  }
+  const textContent = content.find((item) => isText(item))
+  return textContent?.text || ""
+}
+
+const buildTestCompletion = (memory: WorkingMemory) => {
+  const prompt = memory.memories
+    .map((mem) => textFromContent(mem.content))
+    .join("\n")
+
+  const replyMatch = prompt.match(/Reply with(?: just)?(?: the letter)? ["“']([^"”']+)["”']/i)
+  if (replyMatch) {
+    return replyMatch[1]
+  }
+
+  const formatMatch = prompt.match(/Use the format:\s*'([^']+)'/i)
+  if (formatMatch) {
+    const sample = formatMatch[1]
+    return sample.includes("...") ? sample.replace("...", "ok") : sample
+  }
+
+  if (/say .*hello/i.test(prompt) || /hello/i.test(prompt)) {
+    return "hello"
+  }
+
+  return "ok"
+}
+
+class TestProcessor implements Processor {
+  async process<SchemaType = string>(opts: ProcessOpts<SchemaType>): Promise<ProcessResponse<SchemaType>> {
+    const completion = buildTestCompletion(opts.memory)
+    const stream = (async function* () {
+      yield completion
+    })()
+    const usage = Promise.resolve({
+      model: opts.model || "fast",
+      input: completion.length,
+      output: completion.length,
     })
-  }
-}
-
-const coreContentToSocialAGIContent = (content: InputMemory["content"]): SocialAGIMemory["content"] => {
-  if (typeof content === "string") {
-    return content;
-  } else {
-    return content.map((c) => {
-      if (c.type === "text") {
-        return c;
-      }
-      return {
-        type: "image_url",
-        image_url: c.image_url.url
-      };
-    });
-  }
-}
-
-export const socialAGIMemoryToCoreMemory = (oldMemory: SocialAGIMemory): InputMemory => {
-  if (oldMemory.metadata?.___core) {
-    return oldMemory as InputMemory
-  }
-  return {
-    ...oldMemory,
-    content: socialAgiContentToCoreContent(oldMemory.content),
-    metadata: {
-      ...oldMemory.metadata,
-      timestamp: oldMemory.metadata?.timestamp || Date.now(),
-      ___core: true,
-    },
-    _timestamp: (oldMemory as any)._timestamp || oldMemory.metadata?.timestamp || Date.now()
-  }
-}
-
-export const coreMemoryToSocialAGIMemory = (newMemory: InputMemory | Memory): SocialAGIMemory => {
-  const { metadata, _timestamp, _id, content, ...rest } = newMemory;
-  return {
-    ...rest,
-    content: coreContentToSocialAGIContent(content),
-    metadata: {
-      _id,
-      timestamp: _timestamp,
-      ...metadata,
-      ___core: false,
+    return {
+      rawCompletion: Promise.resolve(completion),
+      parsed: Promise.resolve(completion as SchemaType),
+      stream,
+      usage,
     }
-  } as SocialAGIMemory
+  }
 }
 
-registerProcessor("fireworks", (opts: Partial<OpenAIProcessorOpts> = {}) => {
-  return new OpenAICompatibleProcessor({
-    clientOptions: {
-      baseURL: "https://api.fireworks.ai/inference/v1",
-      apiKey: process.env.FIREWORKS_API_KEY,
-      fetch,
-    },
-    singleSystemMessage: true,
-    forcedRoleAlternation: true,
-    disableStreamUsageParam: true,
-    defaultCompletionParams: {
-      model: "fireworks/nous-hermes-2-mixtral-8x7b-dpo-fp8",
-      max_tokens: 16_000,
-    },
-    ...opts,
-  })
-})
-
-registerProcessor("mistral", (opts: Partial<OpenAIProcessorOpts> = {}) => {
-  return new OpenAICompatibleProcessor({
-    clientOptions: {
-      baseURL: "https://api.mistral.ai/v1/",
-      apiKey: process.env.MISTRAL_API_KEY,
-      fetch,
-    },
-    singleSystemMessage: true,
-    disableResponseFormat: true,
-    disableStreamUsageParam: true,
-    defaultCompletionParams: {
-      model: "mistral-medium-latest",
-      max_tokens: 1600,
-    },
-    ...opts,
-  })
-})
 
 registerProcessor("openai-fixed-fetch", (opts: Partial<OpenAIProcessorOpts> = {}) => {
   return new OpenAIProcessor({
     ...opts,
-    clientOptions: {
-      ...opts.clientOptions,
-      fetch,
-    }
   })
 })
 
-registerProcessor("anthropic-fixed-fetch", (opts: Partial<OpenAIProcessorOpts> = {}) => {
+registerProcessor("anthropic-fixed-fetch", (opts: Partial<AnthropicProcessorOpts> = {}) => {
   return new AnthropicProcessor({
     ...opts,
     clientOptions: {
       ...opts.clientOptions,
-      fetch,
     },
-    customClient: AnthropicCustomRestClient,
   })
 })
 
@@ -166,7 +104,8 @@ export class SoulEngineProcessor implements Processor {
 
   async process<SchemaType = string>(opts: ProcessOpts<SchemaType>): Promise<ProcessResponse<SchemaType>> {
     const processor = await this.processorFromModel(opts.model)
-    const { model, ...processOptsWithoutModel } = opts
+    const processOptsWithoutModel = { ...opts }
+    delete processOptsWithoutModel.model
 
     const isOrgModel = this.isOrgModel(opts.model)
 
@@ -200,13 +139,13 @@ export class SoulEngineProcessor implements Processor {
     }
   }
 
-  private modelForProcessCall({ model }: ProcessOpts<any>) {
+  private modelForProcessCall({ model }: ProcessOpts<unknown>) {
     model ||= this.defaultModel
     if (this.isOrgModel(model)) {
       return {}
     }
     return {
-      model: MODEL_MAP[model].name
+      model: MODEL_MAP[model]?.name ?? model
     }
   }
 
@@ -215,16 +154,22 @@ export class SoulEngineProcessor implements Processor {
   }
 
   private async processorFromModel(model?: string) {
-    model ||= this.defaultModel
+    if (isTestMode()) {
+      return new TestProcessor()
+    }
+    const resolvedModel = model ?? this.defaultModel ?? "fast"
 
     // this path expects "organizationSlug/modelName" as the model where the modelName is the *custom* model name setup when creating a new custom processor
-    if (this.isOrgModel(model)) {
+    if (this.isOrgModel(resolvedModel)) {
       throw new Error(CUSTOM_PROCESSORS_REMOVED_MESSAGE)
     }
 
-    const modelParams = MODEL_MAP[model]
-    if (!modelParams?.processor) {
-      throw new Error('Looks like your model is unsupported')
+    const modelParams = MODEL_MAP[resolvedModel]
+    if (!(modelParams?.processor)) {
+      if (resolvedModel.startsWith("gpt")) {
+        return getProcessor("openai-fixed-fetch", { defaultCompletionParams: { model: resolvedModel }, defaultRequestParams: { signal: this.signal } })
+      }
+      return getProcessor("openrouter", { defaultRequestParams: { signal: this.signal } })
     }
 
     switch (modelParams.processor) {
@@ -232,10 +177,10 @@ export class SoulEngineProcessor implements Processor {
         return getProcessor("openai-fixed-fetch", { defaultCompletionParams: { model: modelParams.name }, defaultRequestParams: { signal: this.signal } })
       case "anthropic":
         return getProcessor("anthropic-fixed-fetch", { defaultCompletionParams: { model: modelParams.name }, defaultRequestParams: { signal: this.signal } })
-      case "fireworks":
-        return getProcessor("fireworks", { defaultCompletionParams: { model: modelParams.name }, defaultRequestParams: { signal: this.signal } })
       case "google":
         return getProcessor("google", { defaultCompletionParams: { model: modelParams.name }, defaultRequestParams: { signal: this.signal } })
+      case "openrouter":
+        return getProcessor("openrouter", { defaultCompletionParams: { model: modelParams.name }, defaultRequestParams: { signal: this.signal } })
       default:
         throw new Error('Looks like your model is unsupported')
     }

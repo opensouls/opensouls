@@ -36,7 +36,7 @@ Let's unpack this step by step. This is the code responsible for making Samantha
 const [withDialog, stream] = await externalDialog(
   workingMemory,
   "Talk to the user trying to gain trust and learn about their inner world.",
-  { stream: true, model: "gpt-4-0125-preview" }
+  { stream: true, model: "quality" }
 );
 speak(stream);
 ```
@@ -70,7 +70,7 @@ First, she extracted some learnings from the conversation using the `internalMon
 const [withLearnings, learnings] = await internalMonologue(
   mem,
   "What have I learned specifically about the user from the last message?",
-  { model: "gpt-4-0125-preview" }
+  { model: "fast" }
 )
 log("Learnings:", learnings)
 ```
@@ -78,7 +78,7 @@ log("Learnings:", learnings)
 Then, Samantha used those learnings to update her notes about you:
 
 ```typescript filename="souls/samatha-learns/soul/subprocesses/learnsAboutTheUser.ts"
-const [, notes] = await userNotes(withLearnings, undefined, { model: "gpt-4-0125-preview"})
+const [, notes] = await userNotes(withLearnings, undefined, { model: "fast" })
 log("Notes:", notes)
 userModel.current = notes
 ```
@@ -96,7 +96,7 @@ Finally, Samantha reflected about how her behavior should change based on what s
       instructions: "Reflect on the recent learnings about the user and my behavior", 
       verb: "thinks",
     },
-    { model: "gpt-4-0125-preview" }
+    { model: "fast" }
   );
   log("Thought:", thought)
 ```

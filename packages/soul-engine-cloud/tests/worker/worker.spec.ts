@@ -9,6 +9,8 @@ import { EventName, IPCEvent } from "../../src/worker/worker.ts"
 import { logger } from "../../src/logger.ts"
 import { WorkerController } from "../../src/worker/controller.ts"
 
+process.env.SOUL_ENGINE_TEST_MODE = "true"
+
 const PORT = 4000
 
 function readDirRecursive(directory: PathLike) {

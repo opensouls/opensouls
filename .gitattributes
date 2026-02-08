@@ -1,1 +1,4 @@
 *.lockb binary diff=lockb
+
+# Use bd merge for beads JSONL files
+.beads/issues.jsonl merge=beads

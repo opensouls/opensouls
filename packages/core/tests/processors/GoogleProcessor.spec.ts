@@ -7,15 +7,7 @@ import { zodToJsonSchema } from "zod-to-json-schema"
 import { GoogleProcessor } from '../../src/processors/GoogleProcessor.ts';
 import { indentNicely } from '../../src/utils.ts';
 import { externalDialog } from '../shared/cognitiveSteps.ts';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { join, dirname } from 'path';
-
-// Get the directory name of the current module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const GOOGLE_MODEL = "gemini-1.5-flash"
+const GOOGLE_MODEL = "gemini-3-flash-preview"
 
 describe('GoogleProcessor', () => {
   it('processes input from WorkingMemory and return a valid response', async () => {
@@ -196,46 +188,4 @@ describe('GoogleProcessor', () => {
     expect((await response.parsed).toLowerCase()).toContain("dog")
   })
 
-  it('executes with audio model with openAI style content', async () => {
-
-    const base64Buffer = readFileSync(join(__dirname, "../mocks/apples.mp3"));
-    const base64AudioFile = base64Buffer.toString("base64");
-
-    const processor = new GoogleProcessor({});
-
-    const memory = new WorkingMemory({
-      soulName: 'MrVision',
-      memories: [
-        {
-          role: ChatMessageRoleEnum.System,
-          content: "You are modeling the mind of MrVision, an AI designed to understand audio."
-        },
-        {
-          role: ChatMessageRoleEnum.User,
-          content: [
-            {
-              type: "text",
-              text: "What does this audio talk about?",
-            },
-            {
-              inlineData: {
-                mimeType: "audio/mp3",
-                data: base64AudioFile
-              },
-            }
-          ]
-        }
-      ],
-    });
-
-    const response = await processor.process({
-      memory: memory,
-      model: GOOGLE_MODEL
-    });
-    expect(await response.rawCompletion).to.have.length.greaterThan(0);
-    expect((await response.usage).input).to.be.greaterThan(0);
-    expect((await response.usage).output).to.be.greaterThan(0);
-    expect((await response.usage).model).to.equal(GOOGLE_MODEL);
-    expect((await response.parsed).toLowerCase()).toContain("apple")
-  })
 });

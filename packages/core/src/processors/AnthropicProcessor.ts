@@ -1,168 +1,53 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { trace, context } from "@opentelemetry/api";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { streamText } from "ai";
 import { registerProcessor } from "./registry.ts";
-import { 
-  ChatMessageContent, 
-  ChatMessageRoleEnum, 
-  Memory,
-  Content,
-  AnthropicImage,
-  ContentTypeGuards
-} from "../Memory.ts";
-import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { Memory } from "../Memory.ts";
 
 import {
+  buildAbortSignal,
   extractJSON,
   Processor,
   prepareMemoryForJSON,
   ProcessOpts,
-  ProcessResponse
+  ProcessResponse,
+  RequestOptions
 } from "./Processor.ts";
-import { backOff } from "exponential-backoff";
-import { fixMessageRoles } from './messageRoleFixer.ts';
-import { createLLMStreamReader } from '../utils/llmStreamReader.ts';
+import { fixMessageRoles } from "./messageRoleFixer.ts";
+import { convertMemoriesToCoreMessages } from "./shared/messageConverter.ts";
+import { wrapVercelSDKResponse } from "./shared/responseWrapper.ts";
 
 const tracer = trace.getTracer(
   'open-souls-AnthropicProcessor',
   '0.0.1',
 );
 
-interface AnthropicMessage {
-  content: string
-  role: ChatMessageRoleEnum.Assistant | ChatMessageRoleEnum.User
-}
+export type AnthropicClientConfig = Parameters<typeof createAnthropic>[0];
 
-export interface ICompatibleAnthropicClient {
-  new (options: AnthropicClientConfig): CompatibleAnthropicClient;
-}
-
-export type CompatibleAnthropicClient = {
-  messages: {
-    stream: (body: AnthropicCompletionParams, options?: AnthropicRequestOptions) => AsyncIterable<Anthropic.MessageStreamEvent>
-  }
-}
-
-export type AnthropicClientConfig = ConstructorParameters<typeof Anthropic>[0]
-
-export type AnthropicCompletionParams = Anthropic["messages"]["stream"]["arguments"][0]
-export type AnthropicRequestOptions = Anthropic["messages"]["stream"]["arguments"][1]
-
-export type AnthropicDefaultCompletionParams = AnthropicCompletionParams & {
-  model: AnthropicCompletionParams["model"] | string;
+export type AnthropicDefaultCompletionParams = {
+  model?: string;
+  maxOutputTokens?: number;
+  temperature?: number;
+  maxRetries?: number;
 };
-
-const memoryToChatMessage = (memory: Memory): ChatCompletionMessageParam => {
-  return {
-    role: memory.role,
-    content: memory.content,
-    ...(memory.name && { name: memory.name })
-  } as ChatCompletionMessageParam
-}
 
 export interface AnthropicProcessorOpts {
   clientOptions?: AnthropicClientConfig
   defaultCompletionParams?: Partial<AnthropicDefaultCompletionParams>
-  defaultRequestOptions?: Partial<AnthropicRequestOptions>
-  customClient?: ICompatibleAnthropicClient
+  defaultRequestOptions?: Partial<RequestOptions>
 }
 
-const allowedTypes = ["image/jpeg", "image/png", "image/gif",  "image/webp"]
-
-const openAIContentToAnthropicContent = (content: ChatMessageContent): ChatMessageContent => {
-  if (typeof content === 'string') {
-    return [{ type: 'text', text: content }];
-  }
-
-  return content.map((c): Content => {
-    if (ContentTypeGuards.isText(c)) {
-      return { type: 'text', text: c.text };
-    }
-
-    if (ContentTypeGuards.isImage(c)) {
-      if (ContentTypeGuards.isAnthropicImage(c)) {
-        // If it's already in Anthropic format, return as is
-        return c;
-      }
-
-      let imageUrl: string;
-      if (ContentTypeGuards.isOpenAIImage(c)) {
-        imageUrl = c.image_url.url;
-      } else if (ContentTypeGuards.isGoogleImage(c)) {
-        imageUrl = `data:${c.inlineData.mimeType};base64,${c.inlineData.data}`;
-      } else {
-        throw new Error("Unsupported image format");
-      }
-
-      if (!imageUrl.startsWith("data:")) {
-        throw new Error("Anthropic requires image data to be base64 encoded");
-      }
-
-      const [mimeType, data] = imageUrl.split(',');
-      let mediaType = mimeType.split(':')[1].split(';')[0];
-
-      if (!allowedTypes.includes(mediaType)) {
-        throw new Error(`Anthropic only supports the following image types: ${allowedTypes.join(", ")}`);
-      }
-
-      return {
-        type: "image",
-        source: {
-          type: "base64",
-          media_type: mediaType as AnthropicImage['source']['media_type'],
-          data: data
-        }
-      };
-    }
-
-    throw new Error("Unsupported content type");
-  });
-}
-
-const openAiToAnthropicMessages = (openAiMessages: ChatCompletionMessageParam[]): { system?: string, messages: AnthropicMessage[] } => {
-  let systemMessage: string | undefined
-
-  const messages = openAiMessages.map((m) => {
-    if (m.role === ChatMessageRoleEnum.System) {
-      if (openAiMessages.length > 1) {
-        systemMessage ||= ""
-        systemMessage += m.content + "\n"
-        return undefined
-      }
-
-      return {
-        content: m.content,
-        role: ChatMessageRoleEnum.User,
-      } as AnthropicMessage
-    }
-
-    return {
-      content: openAIContentToAnthropicContent((m.content || "") as ChatMessageContent),
-      role: m.role
-    } as AnthropicMessage
-  }).filter(Boolean) as AnthropicMessage[]
-
-  // claude requires the first message to be user.
-  if (messages[0]?.role === ChatMessageRoleEnum.Assistant) {
-    messages.unshift({
-      content: "...",
-      role: ChatMessageRoleEnum.User
-    })
-  }
-
-  return { system: systemMessage, messages: messages }
-}
-
-const DEFAULT_MODEL = "claude-3-opus-20240229"
+const DEFAULT_MODEL = "claude-sonnet-4-5"
 
 export class AnthropicProcessor implements Processor {
   static label = "anthropic"
-  private client: CompatibleAnthropicClient
+  private anthropicProvider: ReturnType<typeof createAnthropic> | typeof anthropic
 
-  private defaultRequestOptions: Partial<AnthropicRequestOptions>
+  private defaultRequestOptions: Partial<RequestOptions>
   private defaultCompletionParams: Partial<AnthropicDefaultCompletionParams>
 
-  constructor({ clientOptions, defaultRequestOptions, defaultCompletionParams, customClient }: AnthropicProcessorOpts) {
-    this.client = new (customClient ?? Anthropic)(clientOptions)
+  constructor({ clientOptions, defaultRequestOptions, defaultCompletionParams }: AnthropicProcessorOpts) {
+    this.anthropicProvider = clientOptions ? createAnthropic(clientOptions) : anthropic
     this.defaultRequestOptions = defaultRequestOptions || {}
     this.defaultCompletionParams = defaultCompletionParams || {}
   }
@@ -181,8 +66,11 @@ export class AnthropicProcessor implements Processor {
         memory: JSON.stringify(memory),
       })
 
-      return backOff(
-        async () => {
+      const maxAttempts = 5
+      let lastError: unknown
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        try {
           const resp = await this.execute({
             ...opts,
             memory,
@@ -194,7 +82,7 @@ export class AnthropicProcessor implements Processor {
             span.addEvent("extracted")
             span.setAttribute("extracted", extracted || "none")
             if (!extracted) {
-              throw new Error('no json found in completion')
+              throw new Error("no json found in completion")
             }
             const parsed = opts.schema.parse(JSON.parse(extracted))
             span.addEvent("parsed")
@@ -209,19 +97,17 @@ export class AnthropicProcessor implements Processor {
             ...resp,
             parsed: (resp.rawCompletion as Promise<SchemaType>)
           }
-        },
-        {
-          numOfAttempts: 5,
-          retry: (err) => {
-            if (err.message.includes("aborted")) {
-              return false
-            }
-            span.addEvent("retry")
-            console.error("retrying due to error", err)
+        } catch (err: unknown) {
+          lastError = err
+          if (err instanceof Error && err.message.includes("aborted")) {
+            throw err
+          }
+          span.addEvent("retry")
+          console.error("retrying due to error", err)
+        }
+      }
 
-            return true
-          },
-        })
+      throw lastError
     })
   }
 
@@ -229,6 +115,7 @@ export class AnthropicProcessor implements Processor {
     maxTokens,
     memory,
     model: developerSpecifiedModel,
+    schema,
     signal,
     timeout,
     temperature,
@@ -237,45 +124,32 @@ export class AnthropicProcessor implements Processor {
       try {
         const model = developerSpecifiedModel || this.defaultCompletionParams.model || DEFAULT_MODEL
 
-        const { system, messages } = openAiToAnthropicMessages(this.possiblyFixMessageRoles(memory.memories.map(memoryToChatMessage)))
-
-        const params = {
-          system,
-          max_tokens: maxTokens || this.defaultCompletionParams.max_tokens || 512,
-          model,
-          messages,
-          temperature: temperature || 0.8,
-        }
+        const tokens = maxTokens ?? this.defaultCompletionParams.maxOutputTokens ?? 512
+        const temp = temperature ?? this.defaultCompletionParams.temperature ?? 0.8
+        const messages = this.possiblyFixMessageRoles(memory.memories)
+        const coreMessages = convertMemoriesToCoreMessages(messages)
+        const abortSignal = buildAbortSignal(signal, timeout ?? this.defaultRequestOptions.timeout)
 
         span.setAttributes({
-          outgoingParams: JSON.stringify(params),
+          outgoingParams: JSON.stringify({
+            model,
+            maxOutputTokens: tokens,
+            temperature: temp,
+          }),
         })
 
-        const stream = this.client.messages.stream(
-          {
-            ...this.defaultCompletionParams,
-            ...params,
-          },
-          {
-            ...this.defaultRequestOptions,
-            signal,
-            timeout: timeout || 10_000,
-          }
-        )
+        const result = await streamText({
+          model: this.anthropicProvider(model),
+          messages: coreMessages,
+          maxOutputTokens: tokens,
+          temperature: temp,
+          abortSignal,
+          ...(this.defaultCompletionParams.maxRetries ? { maxRetries: this.defaultCompletionParams.maxRetries } : {}),
+        })
 
-        const { textStream, fullContent, usage } = createLLMStreamReader(stream as AsyncIterable<Anthropic.MessageStreamEvent>);
+        span.setAttribute("model", model);
 
-        usage.then(({ input, output }) => {
-          span.setAttribute("model", model);
-          span.setAttribute("usage-input", input);
-          span.setAttribute("usage-output", output);
-        });
-
-        return {
-          rawCompletion: fullContent,
-          stream: textStream,
-          usage: usage.then(({ input, output }) => ({ model, input, output })),
-        };
+        return wrapVercelSDKResponse(result, model, schema);
       } catch (err: any) {
         span.recordException(err)
         throw err
@@ -285,7 +159,7 @@ export class AnthropicProcessor implements Processor {
     })
   }
 
-  private possiblyFixMessageRoles(messages: (Memory | ChatCompletionMessageParam)[]): ChatCompletionMessageParam[] {
+  private possiblyFixMessageRoles(messages: Memory[]): Memory[] {
     return fixMessageRoles({ singleSystemMessage: true, forcedRoleAlternation: true }, messages)
   }
 }

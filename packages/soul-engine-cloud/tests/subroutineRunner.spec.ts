@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from "uuid"
 import "ses"
 import { VectorDb } from "../src/storage/vectorDb.ts"
 import { afterEach, describe, beforeAll, beforeEach, it, expect } from "bun:test"
-import { SoulEventKinds } from "soul-engine/soul"
+import { SoulEventKinds } from "@opensouls/engine"
 import { SoulVectorStore, syncedVectorDbFromDoc } from "../src/storage/soulStores.ts"
 import { compartmentalizeWithEngine } from "./shared/testStaticModule.ts"
 import { getPrismaClient } from "../src/prisma.ts"
@@ -58,6 +58,11 @@ describe("SubroutineRunner", () => {
 
   afterEach(async () => {
     if (organizationId) {
+      await prisma.vector_store.deleteMany({
+        where: {
+          organization_id: organizationId
+        }
+      })
       await prisma.organizations.delete({
         where: {
           id: organizationId

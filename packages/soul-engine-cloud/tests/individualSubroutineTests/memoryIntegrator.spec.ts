@@ -1,6 +1,6 @@
 import { MentalProcess as EngineProcess, indentNicely, useActions } from "@opensouls/engine"
 import { describe, it, expect } from "bun:test"
-import { SoulEventKinds } from "soul-engine/soul"
+import { SoulEventKinds } from "@opensouls/engine"
 import { compartmentalizeWithEngine } from "../shared/testStaticModule.ts"
 import { Blueprint } from "../../src/code/soulCompartment.ts"
 import { setupSubroutine, setupSubroutineTestsDescribe } from "../shared/individualSubroutineTestSetup.ts"
@@ -16,6 +16,7 @@ describe("memory integrator", () => {
         const { speak } = useActions()
 
         if (workingMemory.at(0).content !== "You are modeling the mind of a beekeeper named Athena.") {
+          console.log(`working memory: '${workingMemory.at(0).content}'`)
           throw new Error("Expected the memory to be set to the context.")
         }
 

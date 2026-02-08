@@ -1,1 +1,0 @@
-THIS IS A FROZEN NPM PACKAGE from version 0.0.49 that we keep here for old souls so that they can import from 'soul-engine' instead of '@opensouls/engine'

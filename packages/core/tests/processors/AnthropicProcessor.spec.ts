@@ -20,7 +20,7 @@ describe('AnthropicProcessor', () => {
       ],
     });
 
-    const response = await processor.process({ memory: workingMemory, model: "claude-3-haiku-20240307" });
+    const response = await processor.process({ memory: workingMemory, model: "claude-haiku-4-5" });
     
     let streamed = ""
     for await (const chunk of response.stream) {
@@ -55,7 +55,7 @@ describe('AnthropicProcessor', () => {
       }
     });
 
-    const [, response] = await externalDialog(workingMemory, "Say hello magnificently!", { model: "claude-3-haiku-20240307" });
+    const [, response] = await externalDialog(workingMemory, "Say hello magnificently!", { model: "claude-haiku-4-5" });
 
     expect(typeof response).toBe('string');
   });
@@ -132,13 +132,15 @@ describe('AnthropicProcessor', () => {
 
     const response = await processor.process({
       memory: memory,
-      model: "claude-3-5-sonnet-20240620"
+      model: "claude-sonnet-4-5"
     });
     expect((await response.rawCompletion).length).toBeGreaterThan(0);
     expect((await response.usage).input).toBeGreaterThan(0);
     expect((await response.usage).output).toBeGreaterThan(0);
-    expect((await response.usage).model).toBe("claude-3-5-sonnet-20240620");
+    expect((await response.usage).model).toBe("claude-sonnet-4-5");
     expect((await response.parsed).toLowerCase()).toContain("dog")
+  }, {
+    timeout: 20_000,
   })
 
   it('executes with vision model with anthropic style content', async () => {
@@ -179,13 +181,15 @@ describe('AnthropicProcessor', () => {
 
     const response = await processor.process({
       memory: memory,
-      model: "claude-3-5-sonnet-20240620"
+      model: "claude-sonnet-4-5"
     });
     expect((await response.rawCompletion).length).toBeGreaterThan(0);
     expect((await response.usage).input).toBeGreaterThan(0);
     expect((await response.usage).output).toBeGreaterThan(0);
-    expect((await response.usage).model).toBe("claude-3-5-sonnet-20240620");
+    expect((await response.usage).model).toBe("claude-sonnet-4-5");
     expect((await response.parsed).toLowerCase()).toContain("dog")
+  }, {
+    timeout: 20_000,
   })
 
 

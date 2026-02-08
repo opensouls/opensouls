@@ -2,7 +2,6 @@ import { MentalProcess, PerceptionProcessor } from "@opensouls/engine";
 import soulEngineLegacyArtifact from "./soul-engine.json"
 import openSoulsEngineArtifact from "./opensouls-engine-bundle.json"
 import commonTags, { html } from "common-tags"
-import socialAgi from "socialagi"
 import zod from "zod"
 import { ImportHook, PrecompiledStaticModuleInterface, ResolveHook, StaticModuleType } from "ses";
 import type { Json, SoulEnvironment, SoulHooks } from "@opensouls/engine";
@@ -134,8 +133,6 @@ export class SoulCompartment {
       switch (specifier) {
         case "main":
         case "common-tags":
-        case "socialagi/next":
-        case "socialagi":
         case "@opensouls/core":
         case "@opensouls/engine":
         case "@opensouls/soul":
@@ -193,9 +190,6 @@ export class SoulCompartment {
           return soulEngineLegacyArtifact as unknown as PrecompiledStaticModuleInterface
         case "mustache":
           return specificationFromNpmPackages(Mustache)
-        case "socialagi/next":
-        case "socialagi":
-          return specificationFromNpmPackages(socialAgi)
         case "@opensouls/core":
         case "@opensouls/engine":
           return openSoulsEngineArtifact as unknown as PrecompiledStaticModuleInterface

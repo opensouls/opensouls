@@ -2,7 +2,7 @@
 // @ts-nocheck
 import { html } from "common-tags";
 import { ChatMessageRoleEnum, CortexStep, internalMonologue, mentalQuery } from "socialagi";
-import { MentalProcess } from "soul-engine";
+import { MentalProcess } from "@opensouls/engine";
 
 const userNotes = () => () => ({
   command: ({ entityName: name }: CortexStep) => {

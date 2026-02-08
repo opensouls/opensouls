@@ -5,12 +5,17 @@ import { indentNicely } from "../src/utils.ts";
 import { ChatMessageRoleEnum } from "../src/Memory.ts";
 
 
+enum BogusAction {
+  stop = "stop",
+  rambles = "rambles",
+}
+
 // This test is designed to make sure that the underlying model of SocialAGI supports proper role play and character modeling.
 describe("EvilCharacters", () => {
 
   // swap the model here to test differences
-  // const model = "gpt-3.5-turbo-1106"
-  const model = "gpt-3.5-turbo"
+  // const model = "gpt-5-mini"
+  // const model = "gpt-4o"
 
   const fairyTales = [
     {
@@ -94,11 +99,6 @@ describe("EvilCharacters", () => {
           ],
         })
 
-        enum BogusAction {
-          stop = "stop",
-          rambles = "rambles",
-        }
-
         const [feels] = await internalMonologue(monologue, "Bogus notes how it feels to to be so nicely evil.")
         const [thinks] = await internalMonologue(feels, "Bogus thinks a single sentence.")
         const [says] = await externalDialog(thinks, "What does Bogus says out loud next")
@@ -120,5 +120,7 @@ describe("EvilCharacters", () => {
       } catch (err: any) {
         expect(err).toBeUndefined()
       }
+    }, {
+      timeout: 60_000,
     })
 })

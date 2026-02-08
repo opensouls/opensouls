@@ -1,8 +1,7 @@
-import { ChatMessageRoleEnum, Memory, z } from "socialagi"
+import { ChatMessageRoleEnum, Memory } from "@opensouls/engine"
 import { ProcessMemoryContainer } from "./useProcessMemory.ts"
 import { EventLog } from "./eventLog.ts"
 import { v4 as uuidv4 } from "uuid"
-import { HardenedCortexStep } from "./code/hardenedCortexStep.ts"
 import { EventMetadata, trigger } from "./metrics.ts"
 import { logger } from "./logger.ts"
 import { UpdatingPerceptionContainer } from "./updatingPerceptionContainer.ts"
@@ -15,12 +14,10 @@ import "ses"
 import { Soul, SoulCompartment } from "./code/soulCompartment.ts"
 import { LockedStateError, StateSemaphore } from "./stateSemaphore.ts"
 import { safeName } from "./safeName.ts"
-import { CortexStep } from "socialagi"
-import { MentalProcess, WorkingMemory, InputMemory as CoreMemory, type RagSearchOpts, SoulHooks, defaultRagBucketName, DeveloperInteractionRequest, CognitiveEvent, Perception, PerceptionProcessor, CognitiveEventAbsolute, SoulEventKinds, SoulStoreGetOpts, VectorRecord, MentalProcessReturnOptions, MentalProcessReturnTypes, Json, EphemeralEvent, type TTSBroadcasterOptions } from "@opensouls/engine"
-import { addCoreMetadata, coreMemoryToSocialAGIMemory, createTrackingWorkingMemoryConstructor, defaultBlankMemory, socialAGIMemoryToCoreMemory } from "./code/soulEngineProcessor.ts"
+import { MentalProcess, WorkingMemory, InputMemory, type RagSearchOpts, SoulHooks, defaultRagBucketName, DeveloperInteractionRequest, CognitiveEvent, Perception, PerceptionProcessor, CognitiveEventAbsolute, SoulEventKinds, SoulStoreGetOpts, VectorRecord, MentalProcessReturnOptions, MentalProcessReturnTypes, Json, EphemeralEvent, type TTSBroadcasterOptions } from "@opensouls/engine"
+import { createTrackingWorkingMemoryConstructor, defaultBlankMemory } from "./code/soulEngineProcessor.ts"
 import { VectorStore } from "./storage/vectorStore.ts"
 import { blueprintBucketName, organizationBucketName } from "./lib/bucketNames.ts"
-import { usage } from "./usage/index.ts"
 import { SavedDebugChat, SubroutineState } from "./subroutineState.ts"
 import { isObject } from "./lib/isObject.ts"
 import { deepCopy } from "./lib/deepCopy.ts"
@@ -29,7 +26,6 @@ import { UpdatingScheduledEventContainer } from "./updatingScheduledEventcontain
 import { SharedContext, UseSharedContextFn } from "./sharedContexts.ts"
 import { OpenAITTSProcessor } from "./tts/OpenAITTSProcessor.ts"
 import { Buffer } from "buffer"
-import { LOADIPHLPAPI } from "dns"
 
 const TTS_CHUNK_TIMEOUT_MS = 30_000
 const TTS_DURATION_TIMEOUT_MS = 10_000
@@ -76,13 +72,13 @@ const defaultMemoryIntegrator: MemoryIntegrator = async ({ workingMemory, soul, 
   if (soul.staticMemories.core) {
     workingMemory = workingMemory.withRegion("core", {
       role: ChatMessageRoleEnum.System,
-      content: soul.staticMemories.core,
+      content: soul.staticMemories.core.trim(),
     })
   }
 
   const content = `${perception.name} ${perception.action}: "${perception.content}"`
 
-  const memory: CoreMemory = {
+  const memory: InputMemory = {
     role: perception.internal ? ChatMessageRoleEnum.Assistant : ChatMessageRoleEnum.User,
     content,
     ...(perception.name ? { name: safeName(perception.name) } : {}),
@@ -137,9 +133,6 @@ export class SubroutineRunner {
 
   private createdWorkingMemory: WorkingMemory[]
 
-  public maxContextWindow = 8_000
-
-  step: CortexStep<any>
   workingMemory: WorkingMemory
 
   static initialStateDocFromSubroutine(id: string, soul: SoulCompartment): SubroutineState {
@@ -210,7 +203,6 @@ export class SubroutineRunner {
     this.createdWorkingMemory = []
     this.cancelScheduledEvent = cancelScheduledEvent
     this.emitEphemeral = emitEphemeral
-    this.step = this.baseDeprecatedCortexStep()
     this.workingMemory = this.blankMemory()
 
     this.cachedSharedContexts = {}
@@ -238,7 +230,7 @@ export class SubroutineRunner {
       return this.mentalProcesses().find(process => process.name === this.state.currentProcess)
     }
 
-    return process as MentalProcess<any, CortexStep>
+    return process as MentalProcess<any, WorkingMemory>
   }
 
   onScheduledPerception(fn: (evt: CognitiveEventAbsolute) => Promise<string>) {
@@ -268,7 +260,7 @@ export class SubroutineRunner {
   }
 
   private subprocesses() {
-    return (this.soulCompartment.blueprint.subprocesses || []) as MentalProcess<any, CortexStep>[]
+    return (this.soulCompartment.blueprint.subprocesses || []) as MentalProcess<any, WorkingMemory>[]
   }
 
   async executeMainThread() {
@@ -440,25 +432,21 @@ export class SubroutineRunner {
         currentProcess = this.currentProcess()!
       }
 
-      const hardenedStep = this.hardenDeprecatedCortexStep(this.step) as CortexStep<any>;
+      const safeWorkingMemory = harden(this.workingMemory)
 
       let returnedMemoryOrStep: ReturnType<SubroutineRunner["parseMentalProcessReturn"]>
       try {
         logger.info("main thread: running process");
 
         const returnedFromProcess = await this.awaitWithAbort(currentProcess({
-          step: hardenedStep,
-          workingMemory: harden(this.workingMemory),
+          step: safeWorkingMemory,
+          workingMemory: safeWorkingMemory,
           params: this.state.currentProcessData
         }))
 
         returnedMemoryOrStep = this.parseMentalProcessReturn(returnedFromProcess)
 
-        if (returnedMemoryOrStep.stepOrMemory instanceof WorkingMemory) {
-          await returnedMemoryOrStep.stepOrMemory.finished
-        } else {
-          logger.info("deprecated cortexstep", this.metricMetadata)
-        }
+        await returnedMemoryOrStep.stepOrMemory.finished
         logger.info("current process finished")
       } catch (err: unknown) {
         logger.error("main thread: error inside user code", { error: err, alert: false })
@@ -636,10 +624,10 @@ export class SubroutineRunner {
   }
 
   private parseMentalProcessReturn(
-    mentalProcessReturn: MentalProcessReturnTypes<any, CortexStep>
+    mentalProcessReturn: MentalProcessReturnTypes<WorkingMemory>
   ): {
-    stepOrMemory: CortexStep<any> | WorkingMemory,
-    nextMentalProcess?: MentalProcess<any, CortexStep>,
+    stepOrMemory: WorkingMemory,
+    nextMentalProcess?: MentalProcess<any, WorkingMemory>,
     processOptions?: MentalProcessReturnOptions<any>
   } {
     if (Array.isArray(mentalProcessReturn)) {
@@ -659,13 +647,8 @@ export class SubroutineRunner {
       }
     }
 
-    // if not an array, it was just a workingMemory or a step
     if (!(mentalProcessReturn instanceof WorkingMemory)) {
-      // for some reason we cannot use a instanceof CortexStep here
-      if (!(typeof mentalProcessReturn.entityName === "string")) {
-        throw new Error("You must return either a CortexStep or a WorkingMemory from a MentalProcess. You returned: " + typeof mentalProcessReturn)
-      }
-      this.logWarning("CortexStep is deprecated, please return a WorkingMemory instead", this.stateSemaphore(this.state.globalInvocationCount))
+      throw new Error("You must return a WorkingMemory from a MentalProcess.")
     }
 
     return {
@@ -675,26 +658,9 @@ export class SubroutineRunner {
     }
   }
 
-  private handleNewMemories(stepOrMemory: CortexStep<any> | WorkingMemory) {
-    const memories = this.mentalProcessReturnToMemories(stepOrMemory)
-
-    this.step = this.blankDeprecatedCortexStep().withMemory(memories.socialAGIMemories)
-    this.workingMemory = this.blankMemory().concat(memories.coreMemories)
-    this.state.memories.splice(0, this.state.memories?.length || 0, ...memories.socialAGIMemories)
-  }
-
-  private mentalProcessReturnToMemories(returnedStep: CortexStep<any> | WorkingMemory): { socialAGIMemories: Memory[], coreMemories: CoreMemory[] } {
-    if (returnedStep instanceof WorkingMemory) {
-      return {
-        socialAGIMemories: returnedStep.memories.map(coreMemoryToSocialAGIMemory),
-        coreMemories: returnedStep.memories.map(addCoreMetadata)
-      }
-    }
-
-    return {
-      socialAGIMemories: returnedStep.memories,
-      coreMemories: returnedStep.memories.map(socialAGIMemoryToCoreMemory)
-    }
+  private handleNewMemories(stepOrMemory: WorkingMemory) {
+    this.workingMemory = stepOrMemory
+    this.state.memories.splice(0, this.state.memories?.length || 0, ...deepCopy(stepOrMemory.memories))
   }
 
   async executeSubprocesses(expectedInvocationCount?: number) {
@@ -735,25 +701,21 @@ export class SubroutineRunner {
           this.soulCompartment.globalThis.soul ||= {}
           this.soulCompartment.globalThis.soul.__hooks = this.soulHooks(processMemoryContainer, 0, updatingPerceptionContainer, updatingScheduledEventContainer, semaphore)
 
+          const safeWorkingMemory = harden(this.workingMemory)
           const returned = await this.awaitWithAbort(subprocess({
-            workingMemory: harden(this.workingMemory),
-            step: this.hardenDeprecatedCortexStep(this.step) as CortexStep<any>,
+            workingMemory: safeWorkingMemory,
+            step: safeWorkingMemory,
             params: {}
           }))
 
           const returnedStep = this.parseMentalProcessReturn(returned)
 
-          if (returnedStep.stepOrMemory instanceof WorkingMemory) {
-            await returnedStep.stepOrMemory.finished
-          }
+          await returnedStep.stepOrMemory.finished
 
           await this.awaitCreatedMemoriesAndClear()
 
-          const memories = this.mentalProcessReturnToMemories(returnedStep.stepOrMemory)
-
-          this.step = this.blankDeprecatedCortexStep().withMemory([...memories.socialAGIMemories])
-          this.workingMemory = this.blankMemory().concat([...memories.coreMemories])
-          this.state.memories.splice(0, this.state.memories?.length || 0, ...memories.socialAGIMemories)
+          this.workingMemory = returnedStep.stepOrMemory
+          this.state.memories.splice(0, this.state.memories?.length || 0, ...deepCopy(returnedStep.stepOrMemory.memories))
 
 
           // this one handles the deprecated setNextProcess
@@ -839,8 +801,9 @@ export class SubroutineRunner {
 
     this.state.commits = []
 
-    this.step = this.state.memories.length ? this.blankDeprecatedCortexStep().withMemory(deepCopy(this.state.memories)) : this.baseDeprecatedCortexStep()
-    this.workingMemory = this.state.memories.length ? this.blankMemory().concat(deepCopy(this.state.memories).map(socialAGIMemoryToCoreMemory)) : this.blankMemory()
+    this.workingMemory = this.state.memories.length
+      ? this.blankMemory().concat(deepCopy(this.state.memories))
+      : this.blankMemory()
 
     this.state.processMemory ||= []
     this.currentUseProcessMemory = new ProcessMemoryContainer(this.state.processMemory)
@@ -1059,8 +1022,11 @@ export class SubroutineRunner {
       })
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      return async <T>(step: T, _opts = {}) => {
-        return rag.qaSummary(step as any) as Promise<T>
+      return async <T>(memory: T, _opts = {}) => {
+        if (!(memory instanceof WorkingMemory)) {
+          throw new Error("withRagContext expects a WorkingMemory.")
+        }
+        return rag.qaSummary(memory) as Promise<T>
       }
     }
 
@@ -1310,34 +1276,6 @@ export class SubroutineRunner {
 
   // the user code is run in an ses compartment, and this makes it so they can't access the actual "step" object (which contains API keys, etc).
   // we instead return them a proxy that gives them next, memories, withMemory and value as read only properties
-  private hardenDeprecatedCortexStep(step: CortexStep<any>) {
-    return new HardenedCortexStep(step, {
-      maxContextWindow: this.maxContextWindow,
-      onUsage: (usageEvent) => {
-        usage({
-          ...this.metricMetadata,
-          ...usageEvent,
-        })
-      },
-    }).facade()
-  }
-
-  private blankDeprecatedCortexStep() {
-    return HardenedCortexStep.defaultBlankStep(this.state.attributes.name, this.abortController.signal)
-  }
-
-
-  private baseDeprecatedCortexStep() {
-    return this.blankDeprecatedCortexStep().withMemory([
-      {
-        role: ChatMessageRoleEnum.System,
-        content: this.state.attributes.context,
-        // @ts-ignore
-        region: "core",
-      }
-    ])
-  }
-
   private blankMemory() {
     return defaultBlankMemory(this.state.attributes.name, this.abortController.signal, this.metricMetadata, (wm) => { this.createdWorkingMemory.push(wm) }, this.soulCompartment.blueprint.defaultModel)
   }

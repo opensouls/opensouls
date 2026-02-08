@@ -27,6 +27,9 @@ describe("VectorDb", () => {
     if (!orgId) {
       return
     }
+    await prisma.vector_store.deleteMany({
+      where: { organization_id: orgId }
+    })
     await prisma.organizations.delete({
       where: { id: orgId }
     })
@@ -36,7 +39,7 @@ describe("VectorDb", () => {
   it("lists buckets", async () => {
     const db = new VectorDb()
     let buckets = await db.buckets({ organizationId: orgId })
-    expect(buckets.length).to.equal(0)
+    expect(buckets.length).toBe(0)
     await db.insert({
       organizationId: orgId,
       bucket: "test",
@@ -45,8 +48,8 @@ describe("VectorDb", () => {
       embeddingModel: DEFAULT_EMBEDDING_MODEL,
     })
     buckets = await db.buckets({ organizationId: orgId })
-    expect(buckets.length).to.equal(1)
-    expect(buckets[0]).to.equal("test")
+    expect(buckets.length).toBe(1)
+    expect(buckets[0]).toBe("test")
   })
 
   it("deletes vectors", async () => {
@@ -72,7 +75,7 @@ describe("VectorDb", () => {
       embeddingModel: DEFAULT_EMBEDDING_MODEL,
     })
 
-    expect(searchResults.length).to.equal(0)
+    expect(searchResults.length).toBe(0)
   })
 
   const setupForSearch = async (db: VectorDb) => {
@@ -106,9 +109,9 @@ describe("VectorDb", () => {
       embeddingModel: DEFAULT_EMBEDDING_MODEL,
     })
 
-    expect(searchResults.length).to.equal(1)
-    expect(searchResults[0].key).to.equal("cow")
-    expect(searchResults[0].content).to.equal("I am a purple cow.")
+    expect(searchResults.length).toBe(1)
+    expect(searchResults[0].key).toBe("cow")
+    expect(searchResults[0].content).toBe("I am a purple cow.")
   })
 
   it("limits results", async () => {
@@ -123,8 +126,8 @@ describe("VectorDb", () => {
       embeddingModel: DEFAULT_EMBEDDING_MODEL,
     })
 
-    expect(searchResults.length).to.equal(2)
-    expect(searchResults[0].content).to.include("Industrial")
+    expect(searchResults.length).toBe(2)
+    expect(searchResults[0].content).toContain("Industrial")
   })
 
   it("handles max distance", async () => {
@@ -139,9 +142,9 @@ describe("VectorDb", () => {
       embeddingModel: DEFAULT_EMBEDDING_MODEL,
     })
     
-    expect(searchResults.length).to.equal(6)
-    expect(searchResults[0].key).to.equal("cow")
-    expect(searchResults[0].content).to.equal("I am a purple cow.")
+    expect(searchResults.length).toBe(6)
+    expect(searchResults[0].key).toBe("cow")
+    expect(searchResults[0].content).toBe("I am a purple cow.")
   })
 
   it("handles minSimilarity", async () => {
@@ -156,9 +159,9 @@ describe("VectorDb", () => {
       embeddingModel: DEFAULT_EMBEDDING_MODEL,
     })
     
-    expect(searchResults.length).to.equal(1)
-    expect(searchResults[0].key).to.equal("cow")
-    expect(searchResults[0].content).to.equal("I am a purple cow.")
+    expect(searchResults.length).toBe(1)
+    expect(searchResults[0].key).toBe("cow")
+    expect(searchResults[0].content).toBe("I am a purple cow.")
   })
 
 })

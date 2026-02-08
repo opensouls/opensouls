@@ -13,11 +13,17 @@ export default [
         ecmaVersion: 'latest',
         sourceType: 'module',
       },
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+      },
     },
     plugins: {
       '@typescript-eslint': tseslint,
     },
     rules: {
+      'no-undef': 'off', // TypeScript handles undefined variable checking
+      'no-unused-vars': 'off', // Use @typescript-eslint/no-unused-vars instead
       '@typescript-eslint/no-unused-vars': 'warn',
       '@typescript-eslint/no-explicit-any': 'warn',
     },

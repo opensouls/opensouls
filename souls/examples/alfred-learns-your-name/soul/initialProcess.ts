@@ -21,7 +21,7 @@ const introductions: MentalProcess = async ({ workingMemory }) => {
   const [withDialog, stream] = await externalDialog(
     workingMemory,
     "Talks to the user trying to figure out their name.",
-    { stream: true, model: "gpt-3.5-turbo-0125" }
+    { stream: true, model: "fast" }
   );
   speak(stream);
 

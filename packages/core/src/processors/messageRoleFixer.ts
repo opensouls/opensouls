@@ -1,4 +1,3 @@
-import { ChatCompletionCreateParams, ChatCompletionMessageParam } from "openai/resources/index.mjs"
 import { ChatMessageContent, ChatMessageRoleEnum, ContentImage, ContentText, Memory } from "../Memory.ts"
 import { ContentTypeGuards } from "../Memory.ts"
 
@@ -7,9 +6,9 @@ export interface FixMethods {
   forcedRoleAlternation?: boolean
 }
 
-export const fixMessageRoles = (fixMethods: FixMethods, messages: (Memory | ChatCompletionMessageParam)[]): ChatCompletionMessageParam[] => {
+export const fixMessageRoles = (fixMethods: FixMethods, messages: Memory[]): Memory[] => {
   if (!fixMethods.singleSystemMessage && !fixMethods.forcedRoleAlternation) {
-    return messages as ChatCompletionMessageParam[]
+    return messages
   }
 
   let newMessages = messages
@@ -30,7 +29,7 @@ export const fixMessageRoles = (fixMethods: FixMethods, messages: (Memory | Chat
 
   if (fixMethods.forcedRoleAlternation) {
     // now we make sure that all the messages alternate User/Assistant/User/Assistant
-    let lastRole: ChatCompletionCreateParams["messages"][0]["role"] | undefined
+    let lastRole: ChatMessageRoleEnum | undefined
     const { messages } = newMessages.reduce((acc, message) => {
       // If it's the first message or the role is different from the last, push it to the accumulator
       if (lastRole !== message.role) {
@@ -46,7 +45,7 @@ export const fixMessageRoles = (fixMethods: FixMethods, messages: (Memory | Chat
       }
 
       return acc;
-    }, { messages: [], grouped: [] } as { grouped: ChatMessageContent[], messages: (Memory | ChatCompletionMessageParam)[] })
+    }, { messages: [], grouped: [] } as { grouped: ChatMessageContent[], messages: Memory[] })
 
     newMessages = messages
     if (newMessages[0]?.role === ChatMessageRoleEnum.Assistant) {
@@ -57,7 +56,7 @@ export const fixMessageRoles = (fixMethods: FixMethods, messages: (Memory | Chat
     }
   }
 
-  return newMessages as ChatCompletionMessageParam[]
+  return newMessages
 }
 
 const extractTextFromContent = (content: ChatMessageContent): string => {

@@ -88,8 +88,6 @@ export class CodeWriter {
         ],
         // External packages are not inlcuded in the bundle
         external: [
-          "socialagi/next",
-          "socialagi",
           "common-tags",
           "soul-engine",
           "@opensouls/core",

@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { beforeAll, describe, expect, it } from "bun:test";
 import { compartmentalize } from "./testStaticModule.ts";
-import { Blueprint, MentalProcess, useActions, useProcessManager, useSoulStore } from "soul-engine";
+import { Blueprint, ChatMessageRoleEnum, MentalProcess, WorkingMemory, createCognitiveStep, indentNicely, useActions, useProcessManager, useSoulStore } from "@opensouls/engine";
 import { html } from "common-tags";
-import { externalDialog } from "socialagi";
 import "ses"
 import { doLockdown } from "../../src/lockdown.ts";
 
@@ -16,7 +15,19 @@ describe("test compartmentalizer", () => {
 
   it("makes a compartment from a function", async () => {
     const compartment = await compartmentalize(() => {
-      const vectorIntro: MentalProcess = async ({ step: initialStep }) => {
+      const externalDialog = createCognitiveStep((instructions: string) => {
+        return {
+          command: ({ soulName }: WorkingMemory) => ({
+            role: ChatMessageRoleEnum.System,
+            name: soulName,
+            content: indentNicely`
+              ${instructions}
+            `,
+          }),
+        }
+      })
+
+      const vectorIntro: MentalProcess = async ({ workingMemory }) => {
         const { speak } = useActions()
         const { invocationCount, wait } = useProcessManager()
         const { set, get } = useSoulStore()
@@ -30,9 +41,9 @@ describe("test compartmentalizer", () => {
         const resp = <string>get("test-key")
   
         
-        const step = await initialStep.next(externalDialog(`Communicate the following: ${resp}`))
-        speak(step.value)
-        return step
+        const [nextMemory, response] = await externalDialog(workingMemory, `Communicate the following: ${resp}`)
+        speak(response)
+        return nextMemory
       }
   
       const blueprint: Blueprint = {
@@ -53,9 +64,8 @@ describe("test compartmentalizer", () => {
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { beforeAll, describe, expect, it } from "bun:test";
 import { compartmentalize } from "./testStaticModule.ts";
-import { Blueprint, MentalProcess, useActions, useProcessManager, useSoulStore } from "soul-engine";
+import { Blueprint, ChatMessageRoleEnum, MentalProcess, WorkingMemory, createCognitiveStep, indentNicely, useActions, useProcessManager, useSoulStore } from "@opensouls/engine";
 import { html } from "common-tags";
-import { externalDialog } from "socialagi";
 import "ses"
 import { doLockdown } from "../../src/lockdown.ts";
 
@@ -68,7 +78,19 @@ describe("test compartmentalizer", () => {
 
   it("makes a compartment from a function", async () => {
     const compartment = await compartmentalize(() => {
-      const vectorIntro: MentalProcess = async ({ step: initialStep }) => {
+      const externalDialog = createCognitiveStep((instructions: string) => {
+        return {
+          command: ({ soulName }: WorkingMemory) => ({
+            role: ChatMessageRoleEnum.System,
+            name: soulName,
+            content: indentNicely`
+              ${instructions}
+            `,
+          }),
+        }
+      })
+
+      const vectorIntro: MentalProcess = async ({ workingMemory }) => {
         const { speak } = useActions()
         const { invocationCount, wait } = useProcessManager()
         const { set, get } = useSoulStore()
@@ -82,9 +104,9 @@ describe("test compartmentalizer", () => {
         const resp = <string>get("test-key")
   
         
-        const step = await initialStep.next(externalDialog(`Communicate the following: ${resp}`))
-        speak(step.value)
-        return step
+        const [nextMemory, response] = await externalDialog(workingMemory, `Communicate the following: ${resp}`)
+        speak(response)
+        return nextMemory
       }
   
       const blueprint: Blueprint = {

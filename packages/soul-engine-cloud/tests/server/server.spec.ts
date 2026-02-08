@@ -11,6 +11,8 @@ import { getPrismaClient } from "../../src/prisma.ts"
 import { DocTypes, getVersionedRelatedDocumentName } from "../../src/hocusPocusPersistence/yjsDocumentPersister.ts"
 import { getBytesFromVolume } from "../../src/hocusPocusPersistence/volumeDoc.ts"
 
+process.env.SOUL_ENGINE_TEST_MODE = "true"
+
 function readDirRecursive(directory: PathLike) {
   let results: string[] = [];
   const list = fs.readdirSync(directory);

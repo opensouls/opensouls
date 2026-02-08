@@ -32,4 +32,3 @@ You will have to answer to very senior typescript developers, so keep your code 
 ## Legacy / archived
 - `npm-packages/`: now archived after migration; keep read-only for historical reference only.
 - `legacy/`: historical demos and engines kept for reference only.
-

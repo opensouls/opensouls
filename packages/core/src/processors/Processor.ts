@@ -105,3 +105,19 @@ export function extractJSON(str?: string | null) {
 
   return null;
 }
+
+export const buildAbortSignal = (signal?: AbortSignal, timeout?: number): AbortSignal | undefined => {
+  if (!signal && !timeout) {
+    return undefined;
+  }
+
+  if (timeout && typeof globalThis.AbortSignal?.timeout === "function") {
+    const timeoutSignal = globalThis.AbortSignal.timeout(timeout);
+    if (signal && typeof globalThis.AbortSignal?.any === "function") {
+      return globalThis.AbortSignal.any([signal, timeoutSignal]);
+    }
+    return timeoutSignal;
+  }
+
+  return signal;
+};

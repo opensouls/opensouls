@@ -1,4 +1,4 @@
-import { Json } from './hocusPocusPersistence/types.db.ts'
+import { Json } from "@opensouls/engine"
 import { logger } from './logger.ts'
 
 export interface MinimalMetadata {

@@ -85,7 +85,7 @@ const provokesSpeaker: MentalProcess = async ({ workingMemory }) => {
 
   const [withDialog, stream, speech] = await externalDialog(workingMemory,
     "Converse with the user according to Meta's latest Mind: self, directive, and speaking style.",
-    { stream: true, model: "gpt-3.5-turbo-1106" });
+    { stream: true, model: "gpt-5-mini" });
   speak(stream);
 
   const [withGoals, goals] = await brainstorm(withDialog, "What are some possible ideas for conversational goals Meta wants next? Can include its current goal")
