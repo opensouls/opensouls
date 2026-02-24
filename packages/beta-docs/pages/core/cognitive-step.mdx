@@ -10,7 +10,7 @@ To create a `CognitiveStep`, you use the `createCognitiveStep` function. This fu
 ### Simple Example
 
 ```ts
-import { createCognitiveStep, indentlyNicely } from "@opensouls/engine"
+import { createCognitiveStep, indentNicely } from "@opensouls/engine"
 
 export const instruction = createCognitiveStep((instructions: string) => {
   return {
@@ -41,7 +41,7 @@ const [transformed, stream, responsePromise] = await instruction(initialMemory, 
 You can post-process the responses (for example to strip prefixes, etc).
 
 ```ts
-import { createCognitiveStep, indentlyNicely } from "@opensouls/engine"
+import { createCognitiveStep, indentNicely } from "@opensouls/engine"
 
 const exampleCognitiveStep = createCognitiveStep((data: { message: string; emphasis: boolean }) => {
   const { message, emphasis } = data;
@@ -91,7 +91,7 @@ console.log("Response:", response);
 
 
 ```ts
-import { createCogntiveFunction, z } from "@opensouls/engine";
+import { createCognitiveStep, z } from "@opensouls/engine";
 
 // Example of a cognitive step that uses the greetingSchema
 export const greet = createCognitiveStep((instructions: string) => {
